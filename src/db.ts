@@ -26,6 +26,13 @@ export interface SleepDb {
     duration_minutes: number,
     note?: string
   ) => void;
+  upsertEntry: (
+    date: string,
+    sleep_time: string,
+    wake_time: string,
+    duration_minutes: number,
+    note?: string
+  ) => void;
   getEntries: (days: number) => SleepEntry[];
   getAllEntries: () => SleepEntry[];
   getStats: () => {
@@ -60,6 +67,18 @@ export function createSleepDb(path = DB_PATH): SleepDb {
       const stmt = db.prepare(`
         INSERT INTO sleep_log (date, sleep_time, wake_time, duration_minutes, note)
         VALUES (?, ?, ?, ?, ?)
+      `);
+      stmt.run(date, sleep_time, wake_time, duration_minutes, note ?? null);
+    },
+    upsertEntry(date, sleep_time, wake_time, duration_minutes, note) {
+      const stmt = db.prepare(`
+        INSERT INTO sleep_log (date, sleep_time, wake_time, duration_minutes, note)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(date) DO UPDATE SET
+          sleep_time = excluded.sleep_time,
+          wake_time = excluded.wake_time,
+          duration_minutes = excluded.duration_minutes,
+          note = excluded.note
       `);
       stmt.run(date, sleep_time, wake_time, duration_minutes, note ?? null);
     },
@@ -100,6 +119,7 @@ export function createSleepDb(path = DB_PATH): SleepDb {
 const appDb = createSleepDb();
 
 export const insertEntry = appDb.insertEntry;
+export const upsertEntry = appDb.upsertEntry;
 export const getEntries = appDb.getEntries;
 export const getAllEntries = appDb.getAllEntries;
 export const getStats = appDb.getStats;

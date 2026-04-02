@@ -7,6 +7,8 @@ import { registerStats } from './commands/stats.js';
 import { registerExport } from './commands/export.js';
 import { registerGoal } from './commands/goal.js';
 import { registerQuick } from './commands/quick.js';
+import { registerInsight } from './insight.js';
+import { registerSync } from './sync.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
   version: string;
@@ -25,5 +27,7 @@ registerStats(program);
 registerExport(program);
 registerGoal(program);
 registerQuick(program);
+registerInsight(program);
+registerSync(program);
 
 program.parse();
