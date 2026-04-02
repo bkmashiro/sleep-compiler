@@ -61,3 +61,23 @@ test('stores the expected duration_minutes value', (t) => {
 
   assert.equal(entry.duration_minutes, 2);
 });
+
+test('stores missing notes as null and reports aggregate stats', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.insertEntry('2026-03-30', '23:00', '06:00', 420);
+  db.insertEntry('2026-03-31', '23:30', '07:30', 480);
+  db.insertEntry('2026-04-01', '22:45', '07:15', 510);
+
+  const entries = db.getAllEntries();
+  const stats = db.getStats();
+
+  assert.equal(entries[0].note, null);
+  assert.deepEqual(stats, {
+    total: 3,
+    avg_duration: 470,
+    min_duration: 420,
+    max_duration: 510,
+  });
+});

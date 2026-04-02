@@ -1,6 +1,7 @@
 {
   "name": "sleep-compiler",
   "version": "1.1.0",
+  "license": "MIT",
   "description": "Your personal sleep schedule compiler — log, analyze, and improve your sleep",
   "type": "module",
   "bin": {
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/node": "^20.11.30",
+    "c8": "^11.0.0",
     "tsx": "^4.7.1",
     "typescript": "^5.4.3"
   }

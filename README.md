@@ -1,5 +1,7 @@
 # sleep-compiler
 
+[![npm](https://img.shields.io/npm/v/sleep-compiler)](https://www.npmjs.com/package/sleep-compiler) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Your personal sleep schedule compiler — log, analyze, and improve your sleep.
 
 Track your sleep habits from the command line. All data stored locally in `~/.sleep-compiler/sleep.db`.
