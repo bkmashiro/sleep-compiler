@@ -5,6 +5,7 @@ import { registerLog } from './commands/log.js';
 import { registerReport } from './commands/report.js';
 import { registerStats } from './commands/stats.js';
 import { registerExport } from './commands/export.js';
+import { registerGoal } from './commands/goal.js';
 import { registerQuick } from './commands/quick.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
@@ -22,6 +23,7 @@ registerLog(program);
 registerReport(program);
 registerStats(program);
 registerExport(program);
+registerGoal(program);
 registerQuick(program);
 
 program.parse();
