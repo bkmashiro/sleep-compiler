@@ -1,7 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getAllEntries, getStats } from '../db.js';
-import { formatDuration, calcConsistencyScore, printHeader } from '../formatter.js';
+import { formatDuration, printHeader } from '../formatter.js';
+import { calcConsistencyScore } from '../utils.js';
 
 function getBestStreak(entries: { date: string; duration_minutes: number }[]): number {
   if (entries.length === 0) return 0;

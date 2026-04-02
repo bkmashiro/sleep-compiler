@@ -1,7 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getEntries } from '../db.js';
-import { formatDuration, getQualitySymbol, calcConsistencyScore, printHeader } from '../formatter.js';
+import { formatDuration, getQualitySymbol, printHeader } from '../formatter.js';
+import { calcConsistencyScore } from '../utils.js';
 
 export function registerReport(program: Command): void {
   program

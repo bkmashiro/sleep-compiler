@@ -13,6 +13,10 @@ npm install -g sleep-compiler
 ## Quick Start
 
 ```bash
+# Start sleeping now, then finish when you wake up
+sleep-compiler sleep now
+sleep-compiler wake now
+
 # Log last night's sleep
 sleep-compiler log --sleep "23:30" --wake "07:15"
 
@@ -40,6 +44,36 @@ Options:
 - `--wake <HH:MM>` — Wake time in 24h format (**required**)
 - `--date <YYYY-MM-DD>` — Date to log (default: today)
 - `--note <text>` — Optional note
+
+### `sleep now`
+
+Start a sleep session immediately and save it to `~/.sleep-compiler/pending-sleep.json`.
+
+```bash
+sleep-compiler sleep now
+```
+
+### `wake now`
+
+Finish the active sleep session, log it to the database, and remove the pending file.
+
+```bash
+sleep-compiler wake now
+```
+
+If no pending sleep is active, the command prints:
+
+```text
+Error: No pending sleep found. Run `sleep-compiler sleep now` first.
+```
+
+### `status`
+
+Show whether sleep tracking is currently active.
+
+```bash
+sleep-compiler status
+```
 
 ### `report`
 

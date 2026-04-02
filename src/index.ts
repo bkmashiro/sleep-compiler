@@ -4,6 +4,7 @@ import { registerLog } from './commands/log.js';
 import { registerReport } from './commands/report.js';
 import { registerStats } from './commands/stats.js';
 import { registerExport } from './commands/export.js';
+import { registerQuick } from './commands/quick.js';
 
 const program = new Command();
 
@@ -16,5 +17,6 @@ registerLog(program);
 registerReport(program);
 registerStats(program);
 registerExport(program);
+registerQuick(program);
 
 program.parse();
