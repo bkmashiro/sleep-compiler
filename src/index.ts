@@ -9,6 +9,7 @@ import { registerGoal } from './commands/goal.js';
 import { registerQuick } from './commands/quick.js';
 import { registerInsight } from './insight.js';
 import { registerSync } from './sync.js';
+import { launchTui } from './tui.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
   version: string;
@@ -29,5 +30,10 @@ registerGoal(program);
 registerQuick(program);
 registerInsight(program);
 registerSync(program);
+
+program
+  .command('tui')
+  .description('Launch interactive TUI dashboard')
+  .action(() => launchTui());
 
 program.parse();
