@@ -137,26 +137,39 @@ function describeBestDay(day: number, minutes: number): string {
 }
 
 /**
- * Derives a {@link SleepInsight} summary from a collection of sleep entries.
+ * Derives sleep pattern statistics from a collection of sleep log entries.
  *
- * Only the 30 most recent entries (by date) are considered. Key calculations:
+ * @param entries - Raw sleep entries (unsorted, any date range). Only the 30
+ *   most-recent entries by date are used so that older data does not skew the
+ *   metrics.
+ * @returns A {@link SleepInsight} snapshot containing:
+ *   - **Averages & variance** – mean bedtime/wake/duration and their standard
+ *     deviations (in minutes), computed over the working window.
+ *   - **Weekend shift** – how many minutes later Fri/Sat bedtimes are compared
+ *     to Mon–Thu (a proxy for social jet-lag). `null` when either group is
+ *     absent from the window.
+ *   - **Weekday delta** – the weekday whose average duration deviates most
+ *     *negatively* from the overall mean (the "weakest" night). `null` when
+ *     fewer than two distinct weekdays are represented.
+ *   - **Best day** – the weekday with the highest average duration.
+ *   - **Last-7 vs 30-day comparison** – recent average and its delta against
+ *     the full-window mean, revealing short-term trends.
+ *   - **Bedtime trend** – linear regression slope of normalized bedtimes,
+ *     expressed as minutes-per-week (positive = drifting later).
+ *   - **Sleep debt** – cumulative shortfall vs the 30-day average over the
+ *     last 7 entries (negative = deficit).
+ *   - **sampleSize** – actual number of entries analysed (≤ 30).
  *
- * - **Trend** (`bedtimeTrendMinutesPerWeek`): {@link computeSlope} is run on
- *   the chronologically ordered normalised bedtimes. The slope (minutes per
- *   entry) is multiplied by 7 to express drift per week.
- *
- * - **Sleep debt** (`sleepDebtMinutes`): for the last 7 entries, the
- *   cumulative difference between each night's duration and the 30-day
- *   average. Negative values indicate a deficit.
- *
- * - **Weekend shift** (`weekendShiftMinutes`): difference between the mean
- *   normalised bedtime on Fri/Sat (days 5–6) and Mon–Thu (days 1–4). Null
- *   when either group has no entries.
- *
- * - **Weakest weekday** (`weekdayDelta`): the day-of-week bucket whose
- *   average duration falls furthest below the overall average.
- *
- * Returns a zeroed/null insight object when there are no entries.
+ * Algorithm overview:
+ *   1. Sort and cap entries to the 30 most-recent dates.
+ *   2. Normalise bedtimes so that post-midnight values (< 12:00) wrap to the
+ *      next-day equivalent, keeping overnight sessions contiguous on the
+ *      number line (see `normalizeBedtime`).
+ *   3. Bucket entries by day-of-week (UTC) to compute per-weekday averages.
+ *   4. Identify the lowest-average weekday (weekdayDelta) and highest (bestDay).
+ *   5. Separate Fri/Sat vs Mon–Thu to compute weekend bedtime shift.
+ *   6. Compute the linear slope of the normalised bedtime series via
+ *      least-squares (`computeSlope`) and scale to weeks.
  */
 export function analyzeSleepEntries(entries: SleepEntry[]): SleepInsight {
   const recentEntries = [...entries]

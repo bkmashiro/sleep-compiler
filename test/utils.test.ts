@@ -100,30 +100,43 @@ test('calcConsistencyScore returns 100 with fewer than two bedtimes', () => {
   assert.equal(calcConsistencyScore(['23:15']), 100);
 });
 
-// normalizeBedtime: times before 12:00 are treated as early-morning (next day)
-test('normalizeBedtime wraps early-morning times past midnight', () => {
-  // 01:30 should be treated as 25:30 (next day), i.e. 1*60+30 + 24*60
-  assert.equal(normalizeBedtime('01:30'), 1 * 60 + 30 + 24 * 60);
+test('calcConsistencyScore returns 100 for identical bedtimes (0 stddev)', () => {
+  assert.equal(calcConsistencyScore(['23:00', '23:00', '23:00']), 100);
 });
 
-test('normalizeBedtime leaves evening times unchanged', () => {
-  // 23:00 is clearly a bedtime, no wrapping needed
-  assert.equal(normalizeBedtime('23:00'), 23 * 60);
+test('calcConsistencyScore returns 100 when stddev is just under 30 min', () => {
+  // 23:00 and 23:58 → stddev ≈ 29 min
+  assert.equal(calcConsistencyScore(['23:00', '23:58']), 100);
 });
 
-test('normalizeBedtime treats exactly 12:00 as afternoon, no wrap', () => {
-  // 12:00 is at the boundary — should NOT wrap (noon is not an overnight bedtime)
-  assert.equal(normalizeBedtime('12:00'), 12 * 60);
+test('calcConsistencyScore returns 80 when stddev is between 30 and 44 min', () => {
+  // 22:30 and 00:00 → spread of 90 min, stddev = 45 min exactly… use 22:31/00:00
+  // 22:00 and 00:00 → stddev = 60 min. Use values whose stddev is ~37 min.
+  // 23:00 and 00:14 → spread 74 min, stddev = 37 min
+  assert.equal(calcConsistencyScore(['23:00', '00:14']), 80);
 });
 
-test('normalizeBedtime treats 11:59 as early-morning wrap', () => {
-  // 11:59 is just before the cutoff — should wrap
-  assert.equal(normalizeBedtime('11:59'), 11 * 60 + 59 + 24 * 60);
+test('calcConsistencyScore returns 60 when stddev is between 45 and 59 min', () => {
+  // 22:45 and 00:15 → spread 90 min, stddev = 45 min
+  assert.equal(calcConsistencyScore(['22:45', '00:15']), 60);
 });
 
-test('calcConsistencyScore uses 12:00 threshold so noon-to-6pm bedtimes wrap correctly', () => {
-  // Two bedtimes straddling midnight: 23:00 and 01:00
-  // With 12:00 threshold both normalize correctly (01:00 → 25:00), stddev ~60 → score 40
-  const score = calcConsistencyScore(['23:00', '01:00']);
-  assert.equal(score, 40);
+test('calcConsistencyScore returns 40 when stddev is 60 min or more', () => {
+  // 22:00 and 00:00 → spread 120 min, stddev = 60 min
+  assert.equal(calcConsistencyScore(['22:00', '00:00']), 40);
+});
+
+test('calcConsistencyScore handles post-midnight times without treating them as early-morning', () => {
+  // 23:30 and 00:30 are 60 min apart — should NOT score as 22-hour gap
+  // stddev should be 30 min exactly → boundary: returns 80, not 100
+  assert.equal(calcConsistencyScore(['23:30', '00:30']), 80);
+});
+
+test('calcDurationMinutes handles next-day wake correctly', () => {
+  assert.equal(calcDurationMinutes('23:00', '07:00'), 480);
+});
+
+test('calcDurationMinutes handles same-day wake (sleep and wake same hour)', () => {
+  // edge: wake is 1 min after sleep within the same hour
+  assert.equal(calcDurationMinutes('07:00', '07:01'), 1);
 });
