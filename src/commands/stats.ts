@@ -4,11 +4,11 @@ import { getAllEntries, getStats } from '../db.js';
 import { formatDuration, printHeader } from '../formatter.js';
 import { calcConsistencyScore } from '../utils.js';
 
-function getBestStreak(entries: { date: string; duration_minutes: number }[]): number {
+export function getBestStreak(entries: { date: string; duration_minutes: number }[]): number {
   if (entries.length === 0) return 0;
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
-  let best = 1;
-  let current = 1;
+  let current = sorted[0].duration_minutes >= 420 ? 1 : 0;
+  let best = current;
   for (let i = 1; i < sorted.length; i++) {
     const prev = new Date(sorted[i - 1].date);
     const curr = new Date(sorted[i].date);
@@ -23,7 +23,7 @@ function getBestStreak(entries: { date: string; duration_minutes: number }[]): n
   return best;
 }
 
-function getWorstWeekAvg(entries: { date: string; duration_minutes: number }[]): string {
+export function getWorstWeekAvg(entries: { date: string; duration_minutes: number }[]): string {
   if (entries.length < 7) return 'N/A (not enough data)';
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   let worstAvg = Infinity;
