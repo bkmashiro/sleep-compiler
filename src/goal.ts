@@ -34,7 +34,12 @@ function readConfig(configPath = CONFIG_PATH): Config {
     return {};
   }
 
-  return JSON.parse(readFileSync(configPath, 'utf8')) as Config;
+  try {
+    return JSON.parse(readFileSync(configPath, 'utf8')) as Config;
+  } catch {
+    console.warn(`Warning: config file at ${configPath} is malformed and will be ignored.`);
+    return {};
+  }
 }
 
 function writeConfig(config: Config, configPath = CONFIG_PATH): void {

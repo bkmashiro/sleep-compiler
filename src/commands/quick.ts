@@ -63,7 +63,13 @@ export function readPendingSleep(filePath: string): PendingSleep {
   }
 
   const raw = readFileSync(filePath, 'utf8');
-  const parsed = JSON.parse(raw) as Partial<PendingSleep>;
+  let parsed: Partial<PendingSleep>;
+  try {
+    parsed = JSON.parse(raw) as Partial<PendingSleep>;
+  } catch {
+    rmSync(filePath);
+    throw new Error('Pending sleep file was corrupted and has been removed. Run `sleep-compiler sleep now` to start again.');
+  }
 
   if (typeof parsed.time !== 'string' || typeof parsed.date !== 'string') {
     throw new Error('Pending sleep file is invalid.');
