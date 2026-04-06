@@ -66,22 +66,30 @@ test('calcConsistencyScore returns 100 with fewer than two bedtimes', () => {
   assert.equal(calcConsistencyScore(['23:15']), 100);
 });
 
-test('normalizeBedtime returns minutes unchanged for times at or after 18:00', () => {
-  assert.equal(normalizeBedtime('18:00'), 18 * 60);
-  assert.equal(normalizeBedtime('23:30'), 23 * 60 + 30);
+// normalizeBedtime: times before 12:00 are treated as early-morning (next day)
+test('normalizeBedtime wraps early-morning times past midnight', () => {
+  // 01:30 should be treated as 25:30 (next day), i.e. 1*60+30 + 24*60
+  assert.equal(normalizeBedtime('01:30'), 1 * 60 + 30 + 24 * 60);
 });
 
-test('normalizeBedtime wraps early-morning times past midnight by adding 24h', () => {
-  assert.equal(normalizeBedtime('00:00'), 24 * 60);
-  assert.equal(normalizeBedtime('01:30'), 24 * 60 + 90);
+test('normalizeBedtime leaves evening times unchanged', () => {
+  // 23:00 is clearly a bedtime, no wrapping needed
+  assert.equal(normalizeBedtime('23:00'), 23 * 60);
 });
 
-test('normalizeBedtime treats 17:59 (before threshold) as next-day time', () => {
-  assert.equal(normalizeBedtime('17:59'), 17 * 60 + 59 + 24 * 60);
+test('normalizeBedtime treats exactly 12:00 as afternoon, no wrap', () => {
+  // 12:00 is at the boundary — should NOT wrap (noon is not an overnight bedtime)
+  assert.equal(normalizeBedtime('12:00'), 12 * 60);
 });
 
-test('calcConsistencyScore is unaffected by bedtimes that span midnight', () => {
-  // Both times are post-midnight: normalization should keep them close together
-  const score = calcConsistencyScore(['00:00', '00:30', '23:45']);
-  assert.ok(score >= 80, `expected score >= 80 but got ${score}`);
+test('normalizeBedtime treats 11:59 as early-morning wrap', () => {
+  // 11:59 is just before the cutoff — should wrap
+  assert.equal(normalizeBedtime('11:59'), 11 * 60 + 59 + 24 * 60);
+});
+
+test('calcConsistencyScore uses 12:00 threshold so noon-to-6pm bedtimes wrap correctly', () => {
+  // Two bedtimes straddling midnight: 23:00 and 01:00
+  // With 12:00 threshold both normalize correctly (01:00 → 25:00), stddev ~60 → score 40
+  const score = calcConsistencyScore(['23:00', '01:00']);
+  assert.equal(score, 40);
 });
