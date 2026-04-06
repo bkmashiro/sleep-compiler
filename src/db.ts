@@ -19,6 +19,12 @@ export interface SleepEntry {
 }
 
 export interface SleepDb {
+  /**
+   * Inserts a new sleep entry for `date`.
+   *
+   * @throws If a record for that `date` already exists (UNIQUE constraint on `date`).
+   *   Use {@link upsertEntry} when you want to overwrite an existing entry.
+   */
   insertEntry: (
     date: string,
     sleep_time: string,
@@ -26,6 +32,12 @@ export interface SleepDb {
     duration_minutes: number,
     note?: string
   ) => void;
+
+  /**
+   * Inserts a sleep entry for `date`, or replaces the existing one if it already exists.
+   *
+   * All fields (sleep_time, wake_time, duration_minutes, note) are overwritten on conflict.
+   */
   upsertEntry: (
     date: string,
     sleep_time: string,
@@ -33,14 +45,24 @@ export interface SleepDb {
     duration_minutes: number,
     note?: string
   ) => void;
+
+  /**
+   * Returns the most recent `days` entries, ordered by date descending (newest first).
+   *
+   * @param days - Maximum number of entries to return.
+   */
   getEntries: (days: number) => SleepEntry[];
+
+  /** Returns all entries, ordered by date descending (newest first). */
   getAllEntries: () => SleepEntry[];
+
   getStats: () => {
     total: number;
     avg_duration: number;
     min_duration: number;
     max_duration: number;
   };
+
   close: () => void;
 }
 
@@ -70,6 +92,18 @@ function toWriteError(operation: string, date: string, error: unknown): Error {
   return new Error(`Failed to ${operation} sleep entry: ${message}`);
 }
 
+/**
+ * Creates and returns a {@link SleepDb} backed by a SQLite database.
+ *
+ * - When called with no argument (or with the default `DB_PATH`), it opens the
+ *   persistent file database at `~/.sleep-compiler/sleep.db`, creating the
+ *   directory and schema on first use.
+ * - Pass `':memory:'` to get an in-memory database (useful for tests): data is
+ *   not persisted and is discarded when `close()` is called.
+ *
+ * @param path - Filesystem path for the SQLite file, or `':memory:'` for an
+ *   ephemeral in-memory database. Defaults to `~/.sleep-compiler/sleep.db`.
+ */
 export function createSleepDb(path = DB_PATH): SleepDb {
   const db = new Database(path);
   initializeDb(db);

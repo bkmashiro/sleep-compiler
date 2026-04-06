@@ -1,18 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calcConsistencyScore, calcDurationMinutes, normalizeBedtime, parseTime } from '../src/utils.js';
+import { calcConsistencyScore, calcDurationMinutes, classifySleepQuality, parseTime } from '../src/utils.js';
+
+// parseTime
 
 test('parseTime accepts single-digit hours', () => {
   assert.deepEqual(parseTime('7:05'), { hours: 7, minutes: 5 });
 });
 
-test('parseTime accepts two-digit hours', () => {
-  assert.deepEqual(parseTime('23:59'), { hours: 23, minutes: 59 });
+test('parseTime accepts midnight as 0:00', () => {
+  assert.deepEqual(parseTime('0:00'), { hours: 0, minutes: 0 });
 });
 
-test('parseTime accepts midnight', () => {
-  assert.deepEqual(parseTime('0:00'), { hours: 0, minutes: 0 });
+test('parseTime accepts the last valid time 23:59', () => {
+  assert.deepEqual(parseTime('23:59'), { hours: 23, minutes: 59 });
 });
 
 test('parseTime rejects malformed timestamps', () => {
