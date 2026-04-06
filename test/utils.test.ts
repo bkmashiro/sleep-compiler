@@ -15,6 +15,22 @@ test('parseTime rejects out-of-range times', () => {
   assert.throws(() => parseTime('24:00'), /Invalid time: 24:00/);
 });
 
+test('parseTime rejects hours above 23', () => {
+  assert.throws(() => parseTime('25:00'), /Invalid time: 25:00/);
+});
+
+test('parseTime rejects minutes above 59', () => {
+  assert.throws(() => parseTime('12:60'), /Invalid time: 12:60/);
+});
+
+test('parseTime rejects non-numeric input', () => {
+  assert.throws(() => parseTime('abc'), /Invalid time format: abc\. Use HH:MM/);
+});
+
+test('parseTime rejects empty string', () => {
+  assert.throws(() => parseTime(''), /Invalid time format: \. Use HH:MM/);
+});
+
 test('calcDurationMinutes treats equal sleep and wake times as overnight sleep', () => {
   assert.equal(calcDurationMinutes('08:00', '08:00'), 24 * 60);
 });
