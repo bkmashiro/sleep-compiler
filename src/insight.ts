@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { getEntries, type SleepEntry } from './db.js';
 import { formatDuration, printHeader } from './formatter.js';
-import { parseTime } from './utils.js';
+import { parseTime, EARLY_MORNING_CUTOFF_HOURS } from './utils.js';
 
 export interface SleepInsight {
   avgBedtimeMinutes: number;
@@ -37,7 +37,7 @@ function toClockMinutes(value: string): number {
 
 function normalizeBedtime(value: string): number {
   const total = toClockMinutes(value);
-  return total < 12 * 60 ? total + 24 * 60 : total;
+  return total < EARLY_MORNING_CUTOFF_HOURS * 60 ? total + 24 * 60 : total;
 }
 
 function average(values: number[]): number {
