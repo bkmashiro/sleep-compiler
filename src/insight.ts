@@ -4,26 +4,73 @@ import { getEntries, type SleepEntry } from './db.js';
 import { formatDuration, printHeader } from './formatter.js';
 import { normalizeBedtime, parseTime } from './utils.js';
 
+/**
+ * Aggregated sleep metrics derived from up to the 30 most recent sleep entries.
+ * All time values are in minutes; clock times are stored as minutes since midnight
+ * (bedtimes after midnight are normalised to the range 1440–1800 so that, e.g.,
+ * 01:00 sorts after 23:00 rather than before it).
+ */
 export interface SleepInsight {
+  /** Average bedtime, in clock-minutes since midnight (normalised: values ≥ 1440 are past midnight). */
   avgBedtimeMinutes: number;
+  /** Standard deviation of bedtime across the sample period, in minutes. Lower is more consistent. */
   bedtimeVarianceMinutes: number;
+  /** Average wake time, in clock-minutes since midnight (0–1439). */
   avgWakeMinutes: number;
+  /** Standard deviation of wake time across the sample period, in minutes. */
   wakeVarianceMinutes: number;
+  /** Mean sleep duration across the sample period, in minutes. */
   avgDurationMinutes: number;
+  /**
+   * Social jet lag: how many minutes later the average Friday/Saturday bedtime is
+   * compared to the average Monday–Thursday bedtime. Positive = later on weekends.
+   * `null` when one group has no data.
+   */
   weekendShiftMinutes: number | null;
+  /**
+   * The weekday (0 = Sunday … 6 = Saturday) with the lowest average sleep duration,
+   * together with how far it falls below the overall average (`deltaMinutes ≤ 0`).
+   * `null` when no weekday bucket has data.
+   */
   weekdayDelta: {
+    /** Day-of-week index (0 = Sunday, 6 = Saturday). */
     day: number;
+    /** Average sleep duration for this day, in minutes. */
     avgDurationMinutes: number;
+    /** Difference from the overall average (negative = less sleep than average). */
     deltaMinutes: number;
   } | null;
+  /**
+   * The weekday with the highest average sleep duration.
+   * `null` when no weekday bucket has data.
+   */
   bestDay: {
+    /** Day-of-week index (0 = Sunday, 6 = Saturday). */
     day: number;
+    /** Average sleep duration for this day, in minutes. */
     avgDurationMinutes: number;
   } | null;
+  /** Average sleep duration over the last 7 entries, in minutes. `null` when fewer than 1 entry exists. */
   last7AverageMinutes: number | null;
+  /**
+   * Difference between the last-7 average and the 30-day average, in minutes.
+   * Negative means recent sleep is below the longer-term baseline.
+   * `null` when `last7AverageMinutes` is `null`.
+   */
   last7Vs30DeltaMinutes: number | null;
+  /**
+   * Linear trend in bedtime over the sample window, expressed as minutes of drift per week.
+   * Positive = bedtime is getting later; negative = getting earlier.
+   * `null` when fewer than 2 entries exist.
+   */
   bedtimeTrendMinutesPerWeek: number | null;
+  /**
+   * Cumulative sleep surplus or deficit over the last 7 entries relative to the
+   * 30-day average, in minutes. Negative = sleep debt is accumulating.
+   * `null` when there are no recent entries.
+   */
   sleepDebtMinutes: number | null;
+  /** Number of entries actually used for the analysis (capped at 30). */
   sampleSize: number;
 }
 
@@ -43,6 +90,10 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+/**
+ * Population standard deviation of `values`, in the same units as the input.
+ * Returns `0` for fewer than 2 values (undefined for a single point).
+ */
 function stddev(values: number[]): number {
   if (values.length < 2) {
     return 0;

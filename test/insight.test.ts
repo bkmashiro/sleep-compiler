@@ -135,3 +135,118 @@ test('analyzeSleepEntries calculates weekend shift, weekday slump, and trend', (
   assert.equal(Math.round(insight.bedtimeTrendMinutesPerWeek ?? 0), 15);
   assert.equal(Math.round(insight.sleepDebtMinutes ?? 0), -212);
 });
+
+test('analyzeSleepEntries returns zero-filled insight for empty input', () => {
+  const insight = analyzeSleepEntries([]);
+
+  assert.equal(insight.sampleSize, 0);
+  assert.equal(insight.avgDurationMinutes, 0);
+  assert.equal(insight.avgBedtimeMinutes, 0);
+  assert.equal(insight.avgWakeMinutes, 0);
+  assert.equal(insight.bedtimeVarianceMinutes, 0);
+  assert.equal(insight.wakeVarianceMinutes, 0);
+  assert.equal(insight.weekendShiftMinutes, null);
+  assert.equal(insight.weekdayDelta, null);
+  assert.equal(insight.bestDay, null);
+  assert.equal(insight.last7AverageMinutes, null);
+  assert.equal(insight.last7Vs30DeltaMinutes, null);
+  assert.equal(insight.bedtimeTrendMinutesPerWeek, null);
+  assert.equal(insight.sleepDebtMinutes, null);
+});
+
+test('analyzeSleepEntries handles a single entry', () => {
+  const single: SleepEntry[] = [
+    { id: 1, date: '2026-03-05', sleep_time: '23:00', wake_time: '07:00', duration_minutes: 480, note: null, created_at: '' },
+  ];
+  const insight = analyzeSleepEntries(single);
+
+  assert.equal(insight.sampleSize, 1);
+  assert.equal(insight.avgDurationMinutes, 480);
+  // stddev is undefined for a single point — must not throw, returns 0
+  assert.equal(insight.bedtimeVarianceMinutes, 0);
+  assert.equal(insight.wakeVarianceMinutes, 0);
+  // trend requires ≥2 entries
+  assert.equal(insight.bedtimeTrendMinutesPerWeek, null);
+  // last7 should reflect the single entry
+  assert.equal(insight.last7AverageMinutes, 480);
+  assert.equal(insight.last7Vs30DeltaMinutes, 0);
+});
+
+test('analyzeSleepEntries caps sample at 30 most recent entries', () => {
+  // Spread across two months to keep all dates valid
+  const manyEntries: SleepEntry[] = [
+    ...Array.from({ length: 20 }, (_, i) => ({
+      id: i + 1,
+      date: `2026-02-${String(i + 1).padStart(2, '0')}`,
+      sleep_time: '23:00',
+      wake_time: '07:00',
+      duration_minutes: 480,
+      note: null,
+      created_at: '',
+    })),
+    ...Array.from({ length: 20 }, (_, i) => ({
+      id: i + 21,
+      date: `2026-03-${String(i + 1).padStart(2, '0')}`,
+      sleep_time: '23:00',
+      wake_time: '07:00',
+      duration_minutes: 480,
+      note: null,
+      created_at: '',
+    })),
+  ];
+  const insight = analyzeSleepEntries(manyEntries);
+
+  assert.equal(insight.sampleSize, 30);
+});
+
+test('analyzeSleepEntries handles after-midnight bedtime normalisation', () => {
+  // A bedtime of 01:00 should sort after 23:00, not before it
+  const pair: SleepEntry[] = [
+    { id: 1, date: '2026-03-06', sleep_time: '23:00', wake_time: '07:00', duration_minutes: 480, note: null, created_at: '' },
+    { id: 2, date: '2026-03-07', sleep_time: '01:00', wake_time: '09:00', duration_minutes: 480, note: null, created_at: '' },
+  ];
+  const insight = analyzeSleepEntries(pair);
+
+  // 23:00 = 1380 min, 01:00 normalised = 1500 min; average = 1440 (midnight)
+  assert.equal(insight.avgBedtimeMinutes, 1440);
+  // bedtime is drifting later by 120 min over 1 step → 7 × 120 = 840 min/week
+  assert.equal(insight.bedtimeTrendMinutesPerWeek, 840);
+});
+
+test('analyzeSleepEntries returns null weekendShift when only weekday entries exist', () => {
+  // 2026-03-02 (Mon) through 2026-03-06 (Fri) — no Sat/Sun
+  const weekdayOnly: SleepEntry[] = [
+    { id: 1, date: '2026-03-02', sleep_time: '23:00', wake_time: '07:00', duration_minutes: 480, note: null, created_at: '' },
+    { id: 2, date: '2026-03-03', sleep_time: '23:00', wake_time: '07:00', duration_minutes: 480, note: null, created_at: '' },
+    { id: 3, date: '2026-03-04', sleep_time: '23:00', wake_time: '07:00', duration_minutes: 480, note: null, created_at: '' },
+  ];
+  const insight = analyzeSleepEntries(weekdayOnly);
+
+  assert.equal(insight.weekendShiftMinutes, null);
+});
+
+test('analyzeSleepEntries sleepDebt is positive when recent sleep exceeds baseline', () => {
+  // 3 baseline entries at 420 min, then 7 entries at 480 min → debt = 7 × (480−440) = +280
+  const baseline: SleepEntry[] = Array.from({ length: 3 }, (_, i) => ({
+    id: i + 1,
+    date: `2026-03-0${i + 1}`,
+    sleep_time: '23:30',
+    wake_time: '06:30',
+    duration_minutes: 420,
+    note: null,
+    created_at: '',
+  }));
+  const recent: SleepEntry[] = Array.from({ length: 7 }, (_, i) => ({
+    id: i + 4,
+    date: `2026-03-${String(i + 10).padStart(2, '0')}`,
+    sleep_time: '22:00',
+    wake_time: '06:00',
+    duration_minutes: 480,
+    note: null,
+    created_at: '',
+  }));
+  const insight = analyzeSleepEntries([...baseline, ...recent]);
+
+  assert.ok(insight.sleepDebtMinutes !== null && insight.sleepDebtMinutes > 0,
+    'sleep debt should be positive when recent sleep is above average');
+});
