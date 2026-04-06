@@ -13,8 +13,19 @@ function roundHours(minutes: number): number {
   return Math.round((minutes / 60) * 100) / 100;
 }
 
-function scoreFromDuration(minutes: number, goalHours: number): number {
-  const targetMinutes = goalHours * 60;
+/**
+ * Computes a 0–100 sleep score based on how close the duration is to the
+ * 8-hour (480-minute) target.
+ *
+ * Score = `100 − ⌊|minutes − 480| / 3⌋`, clamped to [0, 100].
+ * Each 3-minute deviation from the target loses one point; deviations beyond
+ * 300 minutes (5 h off-target) are capped at 0.
+ *
+ * @param minutes - Sleep duration in minutes.
+ * @returns An integer score between 0 and 100 (inclusive).
+ */
+function scoreFromDuration(minutes: number): number {
+  const targetMinutes = 8 * 60;
   const delta = Math.abs(minutes - targetMinutes);
   return Math.max(0, Math.min(100, Math.round(100 - delta / 3)));
 }
