@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calcConsistencyScore, calcDurationMinutes, classifySleepQuality, parseTime } from '../src/utils.js';
+import { calcConsistencyScore, calcDurationMinutes, classifySleepQuality, normalizeBedtime, parseTime } from '../src/utils.js';
 
 // parseTime
 
@@ -141,4 +141,17 @@ test('calcDurationMinutes handles next-day wake correctly', () => {
 test('calcDurationMinutes handles same-day wake (sleep and wake same hour)', () => {
   // edge: wake is 1 min after sleep within the same hour
   assert.equal(calcDurationMinutes('07:00', '07:01'), 1);
+});
+
+// normalizeBedtime: times at or after 18:00 are kept as-is; earlier times
+// are treated as past-midnight and shifted forward by 24 h.
+test('normalizeBedtime keeps evening times unchanged', () => {
+  assert.equal(normalizeBedtime('23:00'), 23 * 60);
+  assert.equal(normalizeBedtime('18:00'), 18 * 60);
+});
+
+test('normalizeBedtime wraps early-morning times to next-day', () => {
+  assert.equal(normalizeBedtime('01:00'), 25 * 60);
+  assert.equal(normalizeBedtime('00:00'), 24 * 60);
+  assert.equal(normalizeBedtime('17:59'), 17 * 60 + 59 + 24 * 60);
 });

@@ -35,22 +35,6 @@ function toClockMinutes(value: string): number {
   return hours * 60 + minutes;
 }
 
-/**
- * Converts a bedtime string to a minute value on a continuous scale that
- * crosses midnight without wrapping.
- *
- * Times before noon (< 12:00 / 720 min) are treated as the following
- * morning — 24 × 60 is added so that e.g. 01:00 (60) becomes 1500, keeping
- * it numerically close to 23:00 (1380) rather than near the start of the
- * scale. The noon cut-off is more permissive than {@link utils.normalizeBedtime}
- * (which uses 18:00) to accommodate very-early-morning edge cases in
- * statistical calculations.
- */
-function normalizeBedtime(value: string): number {
-  const total = toClockMinutes(value);
-  return total < 12 * 60 ? total + 24 * 60 : total;
-}
-
 function average(values: number[]): number {
   if (values.length === 0) {
     return 0;
