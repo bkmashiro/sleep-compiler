@@ -119,8 +119,8 @@ export function getGoalSummary(
     );
     const totalHours = days.reduce((sum, day) => sum + day.hours, 0);
     const hitCount = days.filter((day) => day.status === 'hit').length;
-    const weeklyAverage = Math.round((totalHours / days.length) * 10) / 10;
-    const hitRate = Math.round((hitCount / days.length) * 100);
+    const weeklyAverage = days.length === 0 ? 0 : Math.round((totalHours / days.length) * 10) / 10;
+    const hitRate = days.length === 0 ? 0 : Math.round((hitCount / days.length) * 100);
 
     return {
       goalHours,

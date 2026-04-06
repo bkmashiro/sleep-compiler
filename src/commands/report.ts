@@ -12,6 +12,10 @@ export function registerReport(program: Command): void {
     .option('--json', 'Output as JSON')
     .action((opts: { days: string; json?: boolean }) => {
       const days = parseInt(opts.days, 10);
+      if (!Number.isInteger(days) || days <= 0) {
+        console.error('--days must be a positive integer.');
+        process.exit(1);
+      }
       const entries = getEntries(days);
 
       if (opts.json) {
