@@ -73,7 +73,17 @@ export function classifySleepQuality(minutes: number): SleepQuality {
   return 'long';
 }
 
-export function normalizeBedtime(value: string): number {
+/**
+ * Converts a bedtime string to a comparable minute value on a continuous
+ * number line that crosses midnight cleanly.
+ *
+ * Times before 18:00 (1080 min) are assumed to be the *next* calendar day
+ * (e.g. 01:00 means 1 a.m. the following night), so 24 × 60 is added.
+ * This keeps late-night bedtimes numerically adjacent to early-morning
+ * ones, preventing them from wrapping to the start of the scale and
+ * distorting averages or standard-deviation calculations.
+ */
+function normalizeBedtime(value: string): number {
   const { hours, minutes } = parseTime(value);
   const totalMinutes = hours * 60 + minutes;
   return totalMinutes < EARLY_MORNING_CUTOFF_HOURS * 60 ? totalMinutes + 24 * 60 : totalMinutes;
