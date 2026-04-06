@@ -30,16 +30,34 @@ export interface SleepInsight {
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 const SHORT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
+/**
+ * Converts an HH:MM time string to a total-minutes-since-midnight value.
+ * @param value - A time string in "HH:MM" format (e.g. "23:30").
+ * @returns Total minutes elapsed since midnight (0–1439).
+ */
 function toClockMinutes(value: string): number {
   const { hours, minutes } = parseTime(value);
   return hours * 60 + minutes;
 }
 
+/**
+ * Converts a bedtime string to a continuous minute value that places
+ * post-midnight times (00:00–11:59) on the day after midnight so that
+ * e.g. 23:30 and 00:30 sort and average correctly as consecutive bedtimes.
+ * @param value - A time string in "HH:MM" format.
+ * @returns Minutes since midnight, with post-midnight hours shifted forward by
+ *   1440 (i.e. 00:30 → 1470, 23:30 → 1410).
+ */
 function normalizeBedtime(value: string): number {
   const total = toClockMinutes(value);
   return total < 12 * 60 ? total + 24 * 60 : total;
 }
 
+/**
+ * Computes the arithmetic mean of an array of numbers.
+ * @param values - The numbers to average.
+ * @returns The mean, or 0 if the array is empty.
+ */
 function average(values: number[]): number {
   if (values.length === 0) {
     return 0;
@@ -48,6 +66,12 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+/**
+ * Computes the population standard deviation of an array of numbers.
+ * @param values - The numbers to measure.
+ * @returns The standard deviation in the same unit as the input, or 0 when
+ *   fewer than two values are provided.
+ */
 function stddev(values: number[]): number {
   if (values.length < 2) {
     return 0;
@@ -58,6 +82,13 @@ function stddev(values: number[]): number {
   return Math.sqrt(variance);
 }
 
+/**
+ * Formats a total-minutes value as a 24-hour clock string ("HH:MM").
+ * Handles values outside the 0–1439 range by wrapping modulo 24 h, so it is
+ * safe to pass normalized bedtime values (which may exceed 1440).
+ * @param totalMinutes - Minutes since midnight, possibly > 1439 or negative.
+ * @returns A zero-padded "HH:MM" string.
+ */
 function formatClock(totalMinutes: number): string {
   const normalized = ((Math.round(totalMinutes) % (24 * 60)) + 24 * 60) % (24 * 60);
   const hours = Math.floor(normalized / 60);
@@ -65,6 +96,12 @@ function formatClock(totalMinutes: number): string {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
+/**
+ * Formats a signed minute delta as a human-readable string like "+1h 30min" or
+ * "-45 min", suitable for displaying schedule shifts or sleep debt.
+ * @param minutes - Signed minute offset (positive = later/more, negative = earlier/less).
+ * @returns A string with a leading sign, e.g. "+45 min" or "-1h 05min".
+ */
 function formatSignedMinutes(minutes: number): string {
   const sign = minutes >= 0 ? '+' : '-';
   const absolute = Math.abs(Math.round(minutes));
@@ -78,10 +115,29 @@ function formatSignedMinutes(minutes: number): string {
   return `${sign}${hours}h ${mins.toString().padStart(2, '0')}min`;
 }
 
+/**
+ * Returns the UTC weekday index (0 = Sunday … 6 = Saturday) for a date string.
+ * The time is fixed at noon UTC to avoid DST-related off-by-one errors when
+ * constructing a Date from a date-only string.
+ * @param date - An ISO date string in "YYYY-MM-DD" format.
+ * @returns An integer in the range 0–6.
+ */
 function dateToWeekday(date: string): number {
   return new Date(`${date}T12:00:00Z`).getUTCDay();
 }
 
+/**
+ * Computes the slope of the ordinary least-squares regression line for a
+ * sequence of evenly-spaced observations (index 0, 1, 2, …).
+ *
+ * The slope is calculated as Σ((x − x̄)(y − ȳ)) / Σ((x − x̄)²) where x is
+ * the sample index and y is the observed value. A positive slope means the
+ * values trend upward over time; negative means downward.
+ *
+ * @param values - Ordered observations; each element corresponds to one time step.
+ * @returns The slope in units of (value change per index step), or 0 when fewer
+ *   than two values are provided or all x-deviations are zero.
+ */
 function computeSlope(values: number[]): number {
   if (values.length < 2) {
     return 0;
@@ -102,6 +158,12 @@ function computeSlope(values: number[]): number {
   return denominator === 0 ? 0 : numerator / denominator;
 }
 
+/**
+ * Produces a short display string describing the best sleep day of the week.
+ * @param day - Weekday index (0 = Sunday … 6 = Saturday) of the best day.
+ * @param minutes - Average sleep duration on that day, in minutes.
+ * @returns A string like "Sun-Mon consistently 8h+" or "Sun-Mon averages 7h 30min".
+ */
 function describeBestDay(day: number, minutes: number): string {
   const nextDay = (day + 1) % 7;
   const prefix = `${SHORT_DAY_NAMES[day]}-${SHORT_DAY_NAMES[nextDay]}`;
@@ -112,6 +174,18 @@ function describeBestDay(day: number, minutes: number): string {
   return `${prefix} averages ${formatDuration(Math.round(minutes))}`;
 }
 
+/**
+ * Derives a comprehensive set of sleep pattern metrics from raw sleep entries.
+ *
+ * The function considers at most the 30 most recent entries (by date). It
+ * computes average bedtime and wake time, their standard deviations, per-weekday
+ * breakdowns, a weekend social-jet-lag shift, the last-7-days vs 30-day duration
+ * delta, accumulated sleep debt, and a linear bedtime trend in minutes per week.
+ *
+ * @param entries - Raw sleep entries in any order; they are sorted internally.
+ * @returns A {@link SleepInsight} object; fields that require sufficient data
+ *   (e.g. `weekendShiftMinutes`) are `null` when that data is unavailable.
+ */
 export function analyzeSleepEntries(entries: SleepEntry[]): SleepInsight {
   const recentEntries = [...entries]
     .sort((a, b) => a.date.localeCompare(b.date))

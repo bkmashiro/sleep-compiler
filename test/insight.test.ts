@@ -37,6 +37,95 @@ const entries: SleepEntry[] = [
   { id: 30, date: '2026-03-30', sleep_time: '23:55', wake_time: '07:05', duration_minutes: 430, note: null, created_at: '' },
 ];
 
+test('analyzeSleepEntries returns zero-sample insight for empty input', () => {
+  const insight = analyzeSleepEntries([]);
+
+  assert.equal(insight.sampleSize, 0);
+  assert.equal(insight.avgDurationMinutes, 0);
+  assert.equal(insight.weekendShiftMinutes, null);
+  assert.equal(insight.weekdayDelta, null);
+  assert.equal(insight.bestDay, null);
+  assert.equal(insight.last7AverageMinutes, null);
+  assert.equal(insight.last7Vs30DeltaMinutes, null);
+  assert.equal(insight.bedtimeTrendMinutesPerWeek, null);
+  assert.equal(insight.sleepDebtMinutes, null);
+});
+
+test('analyzeSleepEntries with a single entry returns no trend or weekend shift', () => {
+  const single: SleepEntry[] = [
+    { id: 1, date: '2026-03-01', sleep_time: '23:00', wake_time: '07:00', duration_minutes: 480, note: null, created_at: '' },
+  ];
+  const insight = analyzeSleepEntries(single);
+
+  assert.equal(insight.sampleSize, 1);
+  assert.equal(insight.avgDurationMinutes, 480);
+  // Can't compute a trend with one point
+  assert.equal(insight.bedtimeTrendMinutesPerWeek, null);
+  // Can't compare weekday vs weekend with only one entry
+  assert.equal(insight.weekendShiftMinutes, null);
+});
+
+test('analyzeSleepEntries caps at the 30 most recent entries when given more', () => {
+  // Build 35 entries spread across Feb and Mar 2026 (28 days in Feb + 7 in Mar)
+  const dates = [
+    ...Array.from({ length: 28 }, (_, i) => `2026-02-${String(i + 1).padStart(2, '0')}`),
+    ...Array.from({ length: 7 }, (_, i) => `2026-03-${String(i + 1).padStart(2, '0')}`),
+  ];
+  const manyEntries: SleepEntry[] = dates.map((date, i) => ({
+    id: i + 1,
+    date,
+    sleep_time: '23:00',
+    wake_time: '07:00',
+    duration_minutes: 480,
+    note: null,
+    created_at: '',
+  }));
+  const insight = analyzeSleepEntries(manyEntries);
+
+  assert.equal(insight.sampleSize, 30);
+});
+
+test('analyzeSleepEntries normalizes post-midnight bedtimes correctly for averages', () => {
+  // All bedtimes are post-midnight; normalizeBedtime should shift them by +1440
+  // so that averaging treats 00:30 as later than 23:30, not earlier.
+  const postMidnight: SleepEntry[] = [
+    { id: 1, date: '2026-03-01', sleep_time: '00:00', wake_time: '08:00', duration_minutes: 480, note: null, created_at: '' },
+    { id: 2, date: '2026-03-02', sleep_time: '00:30', wake_time: '08:30', duration_minutes: 480, note: null, created_at: '' },
+    { id: 3, date: '2026-03-03', sleep_time: '01:00', wake_time: '09:00', duration_minutes: 480, note: null, created_at: '' },
+  ];
+  const insight = analyzeSleepEntries(postMidnight);
+
+  // Average of 1440, 1470, 1500 → 1470 → wraps back to 00:30
+  assert.equal(Math.round(insight.avgBedtimeMinutes), 1470);
+});
+
+test('analyzeSleepEntries computes zero slope for a flat bedtime series', () => {
+  // All bedtimes identical → slope should be exactly 0 → trend = 0 min/week
+  const flat: SleepEntry[] = Array.from({ length: 10 }, (_, i) => ({
+    id: i + 1,
+    date: `2026-03-${String(i + 1).padStart(2, '0')}`,
+    sleep_time: '23:00',
+    wake_time: '07:00',
+    duration_minutes: 480,
+    note: null,
+    created_at: '',
+  }));
+  const insight = analyzeSleepEntries(flat);
+
+  assert.equal(insight.bedtimeTrendMinutesPerWeek, 0);
+});
+
+test('analyzeSleepEntries returns null weekendShift when no weekday entries exist', () => {
+  // 2026-03-07 is Saturday, 2026-03-08 is Sunday — no Mon–Thu entries
+  const weekendOnly: SleepEntry[] = [
+    { id: 1, date: '2026-03-07', sleep_time: '01:00', wake_time: '09:00', duration_minutes: 480, note: null, created_at: '' },
+    { id: 2, date: '2026-03-08', sleep_time: '01:30', wake_time: '09:30', duration_minutes: 480, note: null, created_at: '' },
+  ];
+  const insight = analyzeSleepEntries(weekendOnly);
+
+  assert.equal(insight.weekendShiftMinutes, null);
+});
+
 test('analyzeSleepEntries calculates weekend shift, weekday slump, and trend', () => {
   const insight = analyzeSleepEntries(entries);
 
