@@ -7,11 +7,23 @@ test('parseTime accepts single-digit hours', () => {
   assert.deepEqual(parseTime('7:05'), { hours: 7, minutes: 5 });
 });
 
+test('parseTime accepts two-digit hours', () => {
+  assert.deepEqual(parseTime('23:59'), { hours: 23, minutes: 59 });
+});
+
+test('parseTime accepts midnight', () => {
+  assert.deepEqual(parseTime('0:00'), { hours: 0, minutes: 0 });
+});
+
 test('parseTime rejects malformed timestamps', () => {
   assert.throws(() => parseTime('7pm'), /Invalid time format: 7pm\. Use HH:MM/);
 });
 
-test('parseTime rejects out-of-range times', () => {
+test('parseTime rejects missing leading zero on minutes', () => {
+  assert.throws(() => parseTime('7:5'), /Invalid time format/);
+});
+
+test('parseTime rejects out-of-range hours', () => {
   assert.throws(() => parseTime('24:00'), /Invalid time: 24:00/);
 });
 
