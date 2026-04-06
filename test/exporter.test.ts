@@ -48,6 +48,79 @@ test('getExportRows can limit output to the last N days', (t) => {
   ]);
 });
 
+test('getExportRows with days=N equal to total entries returns all entries', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-export-'));
+  const dbPath = join(dir, 'sleep.db');
+  const db = createSleepDb(dbPath);
+
+  t.after(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  db.insertEntry('2026-03-30', '23:30', '07:15', 465);
+  db.insertEntry('2026-03-31', '00:15', '07:30', 435);
+  db.insertEntry('2026-04-01', '23:00', '06:45', 465);
+
+  assert.deepEqual(getExportRows(3, dbPath), [
+    { date: '2026-03-30', bedtime: '23:30', waketime: '07:15', duration_hours: 7.75, score: 95 },
+    { date: '2026-03-31', bedtime: '00:15', waketime: '07:30', duration_hours: 7.25, score: 85 },
+    { date: '2026-04-01', bedtime: '23:00', waketime: '06:45', duration_hours: 7.75, score: 95 },
+  ]);
+});
+
+test('getExportRows with days=1 returns only the single most recent entry', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-export-'));
+  const dbPath = join(dir, 'sleep.db');
+  const db = createSleepDb(dbPath);
+
+  t.after(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  db.insertEntry('2026-03-30', '23:30', '07:15', 465);
+  db.insertEntry('2026-03-31', '00:15', '07:30', 435);
+  db.insertEntry('2026-04-01', '23:00', '06:45', 465);
+
+  assert.deepEqual(getExportRows(1, dbPath), [
+    { date: '2026-04-01', bedtime: '23:00', waketime: '06:45', duration_hours: 7.75, score: 95 },
+  ]);
+});
+
+test('getExportRows with days exceeding total entries returns all entries', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-export-'));
+  const dbPath = join(dir, 'sleep.db');
+  const db = createSleepDb(dbPath);
+
+  t.after(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  db.insertEntry('2026-03-30', '23:30', '07:15', 465);
+  db.insertEntry('2026-03-31', '00:15', '07:30', 435);
+
+  assert.deepEqual(getExportRows(10, dbPath), [
+    { date: '2026-03-30', bedtime: '23:30', waketime: '07:15', duration_hours: 7.75, score: 95 },
+    { date: '2026-03-31', bedtime: '00:15', waketime: '07:30', duration_hours: 7.25, score: 85 },
+  ]);
+});
+
+test('getExportRows on empty database returns empty array', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-export-'));
+  const dbPath = join(dir, 'sleep.db');
+  const db = createSleepDb(dbPath);
+
+  t.after(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  assert.deepEqual(getExportRows(undefined, dbPath), []);
+  assert.deepEqual(getExportRows(3, dbPath), []);
+});
+
 test('toCsv renders the requested header and values', () => {
   const csv = toCsv([
     { date: '2024-01-15', bedtime: '23:30', waketime: '07:15', duration_hours: 7.75, score: 92 },
