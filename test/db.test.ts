@@ -38,7 +38,7 @@ test('can retrieve the last N days in descending date order', (t) => {
   );
 });
 
-test('prevents duplicate dates via the unique constraint', (t) => {
+test('insertEntry throws a friendly error on duplicate date', (t) => {
   const db = createSleepDb(':memory:');
   t.after(() => db.close());
 
@@ -46,8 +46,36 @@ test('prevents duplicate dates via the unique constraint', (t) => {
 
   assert.throws(
     () => db.insertEntry('2026-04-01', '22:30', '06:30', 480),
-    /UNIQUE constraint failed: sleep_log\.date/
+    /Failed to save sleep entry: duplicate date 2026-04-01/
   );
+});
+
+test('insertEntry error message does not expose raw SQLite internals', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.insertEntry('2026-04-01', '23:00', '07:00', 480);
+
+  assert.throws(
+    () => db.insertEntry('2026-04-01', '22:30', '06:30', 480),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.ok(!error.message.includes('UNIQUE constraint failed'), 'raw SQLite error should not be exposed');
+      return true;
+    }
+  );
+});
+
+test('upsertEntry succeeds on duplicate date (no throw)', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.insertEntry('2026-04-01', '23:00', '07:00', 480);
+  db.upsertEntry('2026-04-01', '22:30', '06:30', 480);
+
+  const entries = db.getAllEntries();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].sleep_time, '22:30');
 });
 
 test('stores the expected duration_minutes value', (t) => {

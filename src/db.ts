@@ -58,6 +58,18 @@ function initializeDb(db: Database.Database): void {
   `);
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('UNIQUE constraint failed');
+}
+
+function toWriteError(operation: string, date: string, error: unknown): Error {
+  if (isUniqueConstraintError(error)) {
+    return new Error(`Failed to ${operation} sleep entry: duplicate date ${date}`);
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return new Error(`Failed to ${operation} sleep entry: ${message}`);
+}
+
 export function createSleepDb(path = DB_PATH): SleepDb {
   const db = new Database(path);
   initializeDb(db);
@@ -68,7 +80,11 @@ export function createSleepDb(path = DB_PATH): SleepDb {
         INSERT INTO sleep_log (date, sleep_time, wake_time, duration_minutes, note)
         VALUES (?, ?, ?, ?, ?)
       `);
-      stmt.run(date, sleep_time, wake_time, duration_minutes, note ?? null);
+      try {
+        stmt.run(date, sleep_time, wake_time, duration_minutes, note ?? null);
+      } catch (error) {
+        throw toWriteError('save', date, error);
+      }
     },
     upsertEntry(date, sleep_time, wake_time, duration_minutes, note) {
       const stmt = db.prepare(`
@@ -80,7 +96,11 @@ export function createSleepDb(path = DB_PATH): SleepDb {
           duration_minutes = excluded.duration_minutes,
           note = excluded.note
       `);
-      stmt.run(date, sleep_time, wake_time, duration_minutes, note ?? null);
+      try {
+        stmt.run(date, sleep_time, wake_time, duration_minutes, note ?? null);
+      } catch (error) {
+        throw toWriteError('update', date, error);
+      }
     },
     getEntries(days) {
       const stmt = db.prepare(`
