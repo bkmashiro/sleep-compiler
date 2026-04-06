@@ -60,6 +60,25 @@ test('getGoalSummary computes status for the last 7 calendar days', (t) => {
   );
 });
 
+test('getGoalSummary returns zero weeklyAverage and hitRate when no days match', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-goal-'));
+  const dbPath = join(dir, 'sleep.db');
+  const db = createSleepDb(dbPath);
+
+  t.after(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  // Empty database — no entries logged at all
+  const summary = getGoalSummary(8, { dbPath, now: new Date('2026-04-02T12:00:00Z') });
+
+  assert.equal(summary.hitCount, 0);
+  assert.equal(summary.totalDays, 7);
+  assert.equal(summary.weeklyAverage, 0);
+  assert.equal(summary.hitRate, 0);
+});
+
 test('renderGoalStatus prints the summary in the expected shape', () => {
   const output = renderGoalStatus({
     goalHours: 8,
