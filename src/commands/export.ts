@@ -2,21 +2,15 @@ import { Command } from 'commander';
 import { getExportRows, toCsv } from '../exporter.js';
 import { getGoalHours } from '../goal.js';
 
-export function registerExport(program: Command): void {
+export function registerExport(program: Command, dbPath?: string): void {
   program
     .command('export')
     .description('Export sleep history')
-    .option('--csv', 'Output CSV to stdout')
-    .option('--json', 'Output JSON to stdout')
+    .option('--format <type>', 'output format: csv or json', 'csv')
     .option('--days <n>', 'Only include the last N days')
-    .action((opts: { csv?: boolean; json?: boolean; days?: string }) => {
-      if (!opts.csv && !opts.json) {
-        console.error('Specify an output format: --csv or --json.');
-        process.exit(1);
-      }
-
-      if (opts.csv && opts.json) {
-        console.error('Choose either --csv or --json, not both.');
+    .action((opts: { format: string; days?: string }) => {
+      if (opts.format !== 'csv' && opts.format !== 'json') {
+        console.error(`Unknown format "${opts.format}". Use --format csv or --format json.`);
         process.exit(1);
       }
 
@@ -27,9 +21,9 @@ export function registerExport(program: Command): void {
       }
 
       const goalHours = getGoalHours() ?? 8;
-      const rows = getExportRows(parsedDays, undefined, goalHours);
+      const rows = getExportRows(parsedDays, dbPath, goalHours);
 
-      if (opts.json) {
+      if (opts.format === 'json') {
         console.log(JSON.stringify(rows, null, 2));
         return;
       }
