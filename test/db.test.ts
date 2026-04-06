@@ -90,6 +90,61 @@ test('stores the expected duration_minutes value', (t) => {
   assert.equal(entry.duration_minutes, 2);
 });
 
+test('upsertEntry inserts a new entry when no matching date exists', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.upsertEntry('2026-04-01', '23:00', '07:00', 480, 'first night');
+
+  const entries = db.getAllEntries();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].date, '2026-04-01');
+  assert.equal(entries[0].sleep_time, '23:00');
+  assert.equal(entries[0].wake_time, '07:00');
+  assert.equal(entries[0].duration_minutes, 480);
+  assert.equal(entries[0].note, 'first night');
+});
+
+test('upsertEntry overwrites all fields when the date already exists', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.insertEntry('2026-04-01', '23:00', '07:00', 480, 'original');
+  db.upsertEntry('2026-04-01', '22:30', '06:30', 480, 'updated');
+
+  const entries = db.getAllEntries();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].sleep_time, '22:30');
+  assert.equal(entries[0].wake_time, '06:30');
+  assert.equal(entries[0].note, 'updated');
+});
+
+test('upsertEntry clears a note when called without one', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.insertEntry('2026-04-01', '23:00', '07:00', 480, 'has a note');
+  db.upsertEntry('2026-04-01', '23:00', '07:00', 480);
+
+  const [entry] = db.getAllEntries();
+  assert.equal(entry.note, null);
+});
+
+test('upsertEntry handles multiple distinct dates independently', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.upsertEntry('2026-04-01', '23:00', '07:00', 480);
+  db.upsertEntry('2026-04-02', '22:00', '06:00', 480);
+  db.upsertEntry('2026-04-01', '23:30', '07:30', 480);
+
+  const entries = db.getAllEntries();
+  assert.equal(entries.length, 2);
+
+  const april1 = entries.find((e) => e.date === '2026-04-01');
+  assert.equal(april1?.sleep_time, '23:30');
+});
+
 test('stores missing notes as null and reports aggregate stats', (t) => {
   const db = createSleepDb(':memory:');
   t.after(() => db.close());
