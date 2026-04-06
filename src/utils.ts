@@ -1,5 +1,8 @@
 export type SleepQuality = 'poor' | 'short' | 'good' | 'long';
 
+/** Bedtimes before this hour (noon) are treated as early-morning next-day sleepers. */
+export const EARLY_MORNING_CUTOFF_HOURS = 12;
+
 export function parseTime(value: string): { hours: number; minutes: number } {
   const match = value.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) {
@@ -40,7 +43,7 @@ export function classifySleepQuality(minutes: number): SleepQuality {
 function normalizeBedtime(value: string): number {
   const { hours, minutes } = parseTime(value);
   const totalMinutes = hours * 60 + minutes;
-  return totalMinutes < 18 * 60 ? totalMinutes + 24 * 60 : totalMinutes;
+  return totalMinutes < EARLY_MORNING_CUTOFF_HOURS * 60 ? totalMinutes + 24 * 60 : totalMinutes;
 }
 
 export function calcConsistencyScore(bedtimes: string[]): number {
