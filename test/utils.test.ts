@@ -49,3 +49,23 @@ test('normalizeBedtime places post-midnight bedtime after same-night evening bed
 test('calcConsistencyScore returns 100 with fewer than two bedtimes', () => {
   assert.equal(calcConsistencyScore(['23:15']), 100);
 });
+
+test('normalizeBedtime returns minutes unchanged for times at or after 18:00', () => {
+  assert.equal(normalizeBedtime('18:00'), 18 * 60);
+  assert.equal(normalizeBedtime('23:30'), 23 * 60 + 30);
+});
+
+test('normalizeBedtime wraps early-morning times past midnight by adding 24h', () => {
+  assert.equal(normalizeBedtime('00:00'), 24 * 60);
+  assert.equal(normalizeBedtime('01:30'), 24 * 60 + 90);
+});
+
+test('normalizeBedtime treats 17:59 (before threshold) as next-day time', () => {
+  assert.equal(normalizeBedtime('17:59'), 17 * 60 + 59 + 24 * 60);
+});
+
+test('calcConsistencyScore is unaffected by bedtimes that span midnight', () => {
+  // Both times are post-midnight: normalization should keep them close together
+  const score = calcConsistencyScore(['00:00', '00:30', '23:45']);
+  assert.ok(score >= 80, `expected score >= 80 but got ${score}`);
+});
