@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 
 import { createSleepDb } from '../src/db.js';
-import { escapeCsv, getExportRows, toCsv } from '../src/exporter.js';
+import { escapeCsv, getExportRows, toCsv, toExportRow } from '../src/exporter.js';
 
 test('getExportRows returns export-friendly rows in ascending date order', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-export-'));
@@ -49,6 +49,26 @@ test('getExportRows can limit output to the last N days', (t) => {
 });
 
 test('getExportRows with days=N equal to total entries returns all entries', (t) => {
+test('toExportRow score uses goal hours, not a hardcoded 8h', () => {
+  const entry = { id: 1, date: '2026-04-01', sleep_time: '23:00', wake_time: '07:00', duration_minutes: 420, note: null, created_at: '' };
+
+  // 420 min = 7h; goal 7h → perfect score
+  assert.equal(toExportRow(entry, 7).score, 100);
+
+  // 420 min vs 8h goal (480 min) → delta 60 → 100 - 20 = 80
+  assert.equal(toExportRow(entry, 8).score, 80);
+
+  // 420 min vs 9h goal (540 min) → delta 120 → 100 - 40 = 60
+  assert.equal(toExportRow(entry, 9).score, 60);
+});
+
+test('toExportRow score is clamped to 0 when far below goal', () => {
+  // 0 min vs 8h goal → delta 480 → 100 - 160 = -60, clamped to 0
+  const entry = { id: 1, date: '2026-04-01', sleep_time: '00:00', wake_time: '00:00', duration_minutes: 0, note: null, created_at: '' };
+  assert.equal(toExportRow(entry, 8).score, 0);
+});
+
+test('getExportRows uses provided goalHours for scoring', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-export-'));
   const dbPath = join(dir, 'sleep.db');
   const db = createSleepDb(dbPath);

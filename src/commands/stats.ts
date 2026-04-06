@@ -3,21 +3,25 @@ import chalk from 'chalk';
 import { getAllEntries, getStats } from '../db.js';
 import { formatDuration, printHeader } from '../formatter.js';
 import { calcConsistencyScore } from '../utils.js';
+import { getGoalHours } from '../goal.js';
 
-export function getBestStreak(entries: { date: string; duration_minutes: number }[]): number {
+export function getBestStreak(
+  entries: { date: string; duration_minutes: number }[],
+  goalMinutes: number
+): number {
   if (entries.length === 0) return 0;
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
-  let current = sorted[0].duration_minutes >= 420 ? 1 : 0;
+  let current = sorted[0].duration_minutes >= goalMinutes ? 1 : 0;
   let best = current;
   for (let i = 1; i < sorted.length; i++) {
     const prev = new Date(sorted[i - 1].date);
     const curr = new Date(sorted[i].date);
     const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-    if (diff === 1 && sorted[i].duration_minutes >= 420) {
+    if (diff === 1 && sorted[i].duration_minutes >= goalMinutes) {
       current++;
       best = Math.max(best, current);
     } else {
-      current = sorted[i].duration_minutes >= 420 ? 1 : 0;
+      current = sorted[i].duration_minutes >= goalMinutes ? 1 : 0;
     }
   }
   return best;
@@ -40,6 +44,8 @@ export function registerStats(program: Command): void {
     .command('stats')
     .description('Show all-time sleep statistics')
     .action(() => {
+      const goalHours = getGoalHours() ?? 7;
+      const goalMinutes = goalHours * 60;
       const stats = getStats();
       const entries = getAllEntries();
 
@@ -50,7 +56,7 @@ export function registerStats(program: Command): void {
 
       printHeader('All-Time Sleep Stats');
 
-      const streak = getBestStreak(entries);
+      const streak = getBestStreak(entries, goalMinutes);
       const worstWeek = getWorstWeekAvg(entries);
       const consistency = calcConsistencyScore(entries.map((e) => e.sleep_time));
 
@@ -58,7 +64,7 @@ export function registerStats(program: Command): void {
       console.log(`Average duration:  ${chalk.bold(formatDuration(Math.round(stats.avg_duration)))}`);
       console.log(`Best night:        ${chalk.bold(formatDuration(stats.max_duration))}`);
       console.log(`Worst night:       ${chalk.bold(formatDuration(stats.min_duration))}`);
-      console.log(`Best streak (≥7h): ${chalk.bold(streak + ' days')}`);
+      console.log(`Best streak (≥${goalHours}h): ${chalk.bold(streak + ' days')}`);
       console.log(`Worst week avg:    ${chalk.bold(worstWeek)}`);
       console.log(`Consistency score: ${chalk.bold(consistency + '%')}`);
     });

@@ -13,8 +13,8 @@ function roundHours(minutes: number): number {
   return Math.round((minutes / 60) * 100) / 100;
 }
 
-function scoreFromDuration(minutes: number): number {
-  const targetMinutes = 8 * 60;
+function scoreFromDuration(minutes: number, goalHours: number): number {
+  const targetMinutes = goalHours * 60;
   const delta = Math.abs(minutes - targetMinutes);
   return Math.max(0, Math.min(100, Math.round(100 - delta / 3)));
 }
@@ -29,13 +29,13 @@ function scoreFromDuration(minutes: number): number {
  * @param entry - A sleep log entry from the database.
  * @returns An {@link ExportRow} with human-friendly field names.
  */
-export function toExportRow(entry: SleepEntry): ExportRow {
+export function toExportRow(entry: SleepEntry, goalHours: number): ExportRow {
   return {
     date: entry.date,
     bedtime: entry.sleep_time,
     waketime: entry.wake_time,
     duration_hours: roundHours(entry.duration_minutes),
-    score: scoreFromDuration(entry.duration_minutes),
+    score: scoreFromDuration(entry.duration_minutes, goalHours),
   };
 }
 
@@ -52,13 +52,13 @@ export function toExportRow(entry: SleepEntry): ExportRow {
  *                 standard `~/.sleep-compiler/sleep.db` location.
  * @returns Array of {@link ExportRow} objects sorted oldest → newest.
  */
-export function getExportRows(days?: number, dbPath?: string): ExportRow[] {
+export function getExportRows(days?: number, dbPath?: string, goalHours = 8): ExportRow[] {
   const db = createSleepDb(dbPath);
 
   try {
     const entries = db.getAllEntries();
     const filtered = typeof days === 'number' ? entries.slice(0, days) : entries;
-    return filtered.reverse().map(toExportRow);
+    return filtered.reverse().map((entry) => toExportRow(entry, goalHours));
   } finally {
     db.close();
   }

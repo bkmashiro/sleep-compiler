@@ -1,50 +1,59 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
-import { getBestStreak, getWorstWeekAvg } from '../src/commands/stats.js';
+import { getBestStreak } from '../src/commands/stats.js';
 
-// ---------------------------------------------------------------------------
-// getBestStreak
-// ---------------------------------------------------------------------------
+const entry = (date: string, duration_minutes: number) => ({ date, duration_minutes });
 
 test('getBestStreak returns 0 for empty entries', () => {
-  assert.equal(getBestStreak([]), 0);
+  assert.equal(getBestStreak([], 420), 0);
 });
 
-test('getBestStreak returns 1 for a single qualifying entry (>=420 min)', () => {
-  assert.equal(getBestStreak([{ date: '2026-04-01', duration_minutes: 420 }]), 1);
+test('getBestStreak returns 1 for a single night that meets the goal', () => {
+  assert.equal(getBestStreak([entry('2026-04-01', 420)], 420), 1);
 });
 
-test('getBestStreak returns 0 for a single entry below threshold', () => {
-  assert.equal(getBestStreak([{ date: '2026-04-01', duration_minutes: 419 }]), 0);
+test('getBestStreak returns 0 for a single night below the goal', () => {
+  assert.equal(getBestStreak([entry('2026-04-01', 419)], 420), 0);
 });
 
-test('getBestStreak counts consecutive qualifying days', () => {
+test('getBestStreak counts consecutive qualifying nights', () => {
   const entries = [
-    { date: '2026-04-01', duration_minutes: 480 },
-    { date: '2026-04-02', duration_minutes: 450 },
-    { date: '2026-04-03', duration_minutes: 420 },
+    entry('2026-04-01', 420),
+    entry('2026-04-02', 450),
+    entry('2026-04-03', 480),
   ];
-  assert.equal(getBestStreak(entries), 3);
+  assert.equal(getBestStreak(entries, 420), 3);
 });
 
-test('getBestStreak resets when a day is below threshold', () => {
+test('getBestStreak resets when a night falls below goal', () => {
   const entries = [
-    { date: '2026-04-01', duration_minutes: 480 },
-    { date: '2026-04-02', duration_minutes: 300 }, // breaks the streak
-    { date: '2026-04-03', duration_minutes: 480 },
-    { date: '2026-04-04', duration_minutes: 480 },
+    entry('2026-04-01', 420),
+    entry('2026-04-02', 300), // below 7h goal
+    entry('2026-04-03', 420),
+    entry('2026-04-04', 420),
   ];
-  // best streak is 2 (Apr 3–4), not 3
-  assert.equal(getBestStreak(entries), 2);
+  assert.equal(getBestStreak(entries, 420), 2);
 });
 
-test('getBestStreak resets when there is a gap between dates', () => {
+test('getBestStreak resets on non-consecutive dates', () => {
   const entries = [
-    { date: '2026-04-01', duration_minutes: 480 },
-    { date: '2026-04-03', duration_minutes: 480 }, // Apr 2 is missing
+    entry('2026-04-01', 480),
+    entry('2026-04-03', 480), // gap — skipped 2026-04-02
+    entry('2026-04-04', 480),
   ];
-  assert.equal(getBestStreak(entries), 1);
+  assert.equal(getBestStreak(entries, 480), 2);
+});
+
+test('getBestStreak uses goalMinutes, not a hardcoded 420', () => {
+  const entries = [
+    entry('2026-04-01', 480),
+    entry('2026-04-02', 480),
+  ];
+  // 480 min = 8h; streak of 2 when goal is 8h
+  assert.equal(getBestStreak(entries, 480), 2);
+  // same entries fall below a 9h goal (540 min) → no qualifying day → streak 0
+  assert.equal(getBestStreak(entries, 540), 0);
 });
 
 test('getBestStreak handles unsorted input', () => {
