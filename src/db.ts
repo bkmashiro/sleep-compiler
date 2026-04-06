@@ -118,6 +118,20 @@ export function createSleepDb(path = DB_PATH): SleepDb {
 
 const appDb = createSleepDb();
 
+const closeAppDb = (): void => appDb.close();
+
+process.on('exit', closeAppDb);
+
+process.on('SIGINT', () => {
+  appDb.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  appDb.close();
+  process.exit(0);
+});
+
 export const insertEntry = appDb.insertEntry;
 export const upsertEntry = appDb.upsertEntry;
 export const getEntries = appDb.getEntries;
