@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { getExportRows, toCsv } from '../exporter.js';
+import { getGoalHours } from '../goal.js';
 
 export function registerExport(program: Command): void {
   program
@@ -25,7 +26,8 @@ export function registerExport(program: Command): void {
         process.exit(1);
       }
 
-      const rows = getExportRows(parsedDays);
+      const goalHours = getGoalHours() ?? 8;
+      const rows = getExportRows(parsedDays, undefined, goalHours);
 
       if (opts.json) {
         console.log(JSON.stringify(rows, null, 2));
