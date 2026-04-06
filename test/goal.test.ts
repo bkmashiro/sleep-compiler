@@ -1,11 +1,48 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 
 import { createSleepDb } from '../src/db.js';
 import { getGoalHours, getGoalSummary, renderGoalStatus, setGoalHours } from '../src/goal.js';
+
+test('getGoalHours returns null when config.json is missing', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-goal-'));
+  const configPath = join(dir, 'config.json');
+
+  t.after(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  assert.equal(getGoalHours(configPath), null);
+});
+
+test('getGoalHours returns null and warns when config.json is malformed', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-goal-'));
+  const configPath = join(dir, 'config.json');
+
+  t.after(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  writeFileSync(configPath, '{not valid json}', 'utf8');
+
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args.join(' '));
+  };
+
+  t.after(() => {
+    console.warn = originalWarn;
+  });
+
+  assert.equal(getGoalHours(configPath), null);
+  assert.equal(existsSync(configPath), true, 'malformed file should not be deleted');
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /malformed/);
+});
 
 test('setGoalHours persists goalHours to config.json', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-goal-'));
