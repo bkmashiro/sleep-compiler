@@ -9,6 +9,11 @@ export function registerExport(program: Command): void {
     .option('--json', 'Output JSON to stdout')
     .option('--days <n>', 'Only include the last N days')
     .action((opts: { csv?: boolean; json?: boolean; days?: string }) => {
+      if (!opts.csv && !opts.json) {
+        console.error('Specify an output format: --csv or --json.');
+        process.exit(1);
+      }
+
       if (opts.csv && opts.json) {
         console.error('Choose either --csv or --json, not both.');
         process.exit(1);
