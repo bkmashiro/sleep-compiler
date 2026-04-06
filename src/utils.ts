@@ -40,7 +40,7 @@ export function classifySleepQuality(minutes: number): SleepQuality {
 function normalizeBedtime(value: string): number {
   const { hours, minutes } = parseTime(value);
   const totalMinutes = hours * 60 + minutes;
-  return totalMinutes < 18 * 60 ? totalMinutes + 24 * 60 : totalMinutes;
+  return totalMinutes < 12 * 60 ? totalMinutes + 24 * 60 : totalMinutes;
 }
 
 export function calcConsistencyScore(bedtimes: string[]): number {
