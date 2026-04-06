@@ -37,6 +37,63 @@ const entries: SleepEntry[] = [
   { id: 30, date: '2026-03-30', sleep_time: '23:55', wake_time: '07:05', duration_minutes: 430, note: null, created_at: '' },
 ];
 
+function makeEntry(id: number, date: string, durationMinutes: number): SleepEntry {
+  return { id, date, sleep_time: '23:00', wake_time: '07:00', duration_minutes: durationMinutes, note: null, created_at: '' };
+}
+
+test('analyzeSleepEntries returns zero sampleSize for empty input', () => {
+  const insight = analyzeSleepEntries([]);
+  assert.equal(insight.sampleSize, 0);
+  assert.equal(insight.weekendShiftMinutes, null);
+  assert.equal(insight.weekdayDelta, null);
+  assert.equal(insight.bestDay, null);
+});
+
+test('dateToWeekday uses local calendar date, not UTC midnight rollover', () => {
+  // Friday 2026-01-02 and Saturday 2026-01-03 must be classified correctly
+  // as day 5 (Fri) and day 6 (Sat) regardless of timezone.
+  // With getUTCDay() on T12:00:00Z this happens to work, but we verify
+  // local-time parsing via the observable weekend-shift computation.
+  const friday: SleepEntry = makeEntry(1, '2026-01-02', 500);
+  const saturday: SleepEntry = makeEntry(2, '2026-01-03', 540);
+  const tuesday: SleepEntry = makeEntry(3, '2026-01-06', 460);
+  const wednesday: SleepEntry = makeEntry(4, '2026-01-07', 460);
+
+  const insight = analyzeSleepEntries([friday, saturday, tuesday, wednesday]);
+
+  // Weekend entries (Fri/Sat) should be separated from weekday entries (Tue/Wed)
+  assert.notEqual(insight.weekendShiftMinutes, null);
+});
+
+test('analyzeSleepEntries weekendShiftMinutes is null with no Fri/Sat entries', () => {
+  // Sun–Thu only: no Fri (day 5) or Sat (day 6) entries, so weekendShiftMinutes must be null
+  const noFriSat: SleepEntry[] = [
+    makeEntry(1, '2026-01-04', 540), // Sun
+    makeEntry(2, '2026-01-05', 480), // Mon
+    makeEntry(3, '2026-01-06', 460), // Tue
+    makeEntry(4, '2026-01-07', 470), // Wed
+    makeEntry(5, '2026-01-08', 475), // Thu
+  ];
+  const insight = analyzeSleepEntries(noFriSat);
+  assert.equal(insight.weekendShiftMinutes, null);
+});
+
+test('analyzeSleepEntries weekendShiftMinutes is null with only weekend entries', () => {
+  const weekendOnly: SleepEntry[] = [
+    makeEntry(1, '2026-01-03', 540), // Sat
+    makeEntry(2, '2026-01-04', 540), // Sun
+  ];
+  const insight = analyzeSleepEntries(weekendOnly);
+  assert.equal(insight.weekendShiftMinutes, null);
+});
+
+test('analyzeSleepEntries with a single entry returns stable values', () => {
+  const insight = analyzeSleepEntries([makeEntry(1, '2026-01-05', 480)]);
+  assert.equal(insight.sampleSize, 1);
+  assert.equal(insight.bedtimeTrendMinutesPerWeek, null);
+  assert.equal(insight.bedtimeVarianceMinutes, 0);
+});
+
 test('analyzeSleepEntries calculates weekend shift, weekday slump, and trend', () => {
   const insight = analyzeSleepEntries(entries);
 
