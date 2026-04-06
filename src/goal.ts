@@ -49,8 +49,11 @@ function toDaySummary(date: Date, entry: SleepEntry | undefined, goalHours: numb
 
   let status: GoalDay['status'] = 'hit';
   if (minutesUnderGoal > 30) {
+    // > 30 min below goal → clearly missed; worth surfacing as an actionable gap
     status = 'miss';
   } else if (minutesUnderGoal > 0) {
+    // 1–30 min below goal → "near" miss; close enough to show as a warning
+    // rather than a failure so minor rounding doesn't punish perfect nights
     status = 'near';
   }
 

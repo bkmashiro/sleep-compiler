@@ -65,18 +65,73 @@ test('getGoalSummary returns zero weeklyAverage and hitRate when no days match',
   const dbPath = join(dir, 'sleep.db');
   const db = createSleepDb(dbPath);
 
-  t.after(() => {
-    db.close();
-    rmSync(dir, { recursive: true, force: true });
-  });
+  // after(() => ...) is not available outside test(), so use plain cleanup
+  db.insertEntry('2026-04-02', '23:00', '06:59', 8 * 60 - 1); // 479 min → 1 min under 8h
 
-  // Empty database — no entries logged at all
   const summary = getGoalSummary(8, { dbPath, now: new Date('2026-04-02T12:00:00Z') });
+  db.close();
+  rmSync(dir, { recursive: true, force: true });
 
-  assert.equal(summary.hitCount, 0);
-  assert.equal(summary.totalDays, 7);
-  assert.equal(summary.weeklyAverage, 0);
-  assert.equal(summary.hitRate, 0);
+  const day = summary.days.find((d) => d.label === 'Thu');
+  assert.ok(day, 'Thu entry should exist');
+  assert.equal(day.status, 'near');
+});
+
+test('getGoalSummary marks a day as miss when 31 minutes under goal', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-goal-'));
+  const dbPath = join(dir, 'sleep.db');
+  const db = createSleepDb(dbPath);
+
+  db.insertEntry('2026-04-02', '23:00', '06:29', 8 * 60 - 31); // 449 min → 31 min under 8h
+
+  const summary = getGoalSummary(8, { dbPath, now: new Date('2026-04-02T12:00:00Z') });
+  db.close();
+  rmSync(dir, { recursive: true, force: true });
+
+  const day = summary.days.find((d) => d.label === 'Thu');
+  assert.ok(day, 'Thu entry should exist');
+  assert.equal(day.status, 'miss');
+});
+
+test('getGoalSummary marks a day as hit when exactly on goal', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-goal-'));
+  const dbPath = join(dir, 'sleep.db');
+  const db = createSleepDb(dbPath);
+
+  db.insertEntry('2026-04-02', '23:00', '07:00', 8 * 60); // exactly 480 min
+
+  const summary = getGoalSummary(8, { dbPath, now: new Date('2026-04-02T12:00:00Z') });
+  db.close();
+  rmSync(dir, { recursive: true, force: true });
+
+  const day = summary.days.find((d) => d.label === 'Thu');
+  assert.ok(day, 'Thu entry should exist');
+  assert.equal(day.status, 'hit');
+});
+
+test('getGoalSummary marks days with no entry as miss', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-goal-'));
+  const dbPath = join(dir, 'sleep.db');
+  const db = createSleepDb(dbPath);
+  // insert nothing
+  const summary = getGoalSummary(8, { dbPath, now: new Date('2026-04-02T12:00:00Z') });
+  db.close();
+  rmSync(dir, { recursive: true, force: true });
+
+  for (const day of summary.days) {
+    assert.equal(day.hours, 0);
+    assert.equal(day.status, 'miss');
+  }
+});
+
+test('setGoalHours rejects zero and negative values', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-goal-'));
+  const configPath = join(dir, 'config.json');
+
+  assert.throws(() => setGoalHours(0, configPath), /positive/);
+  assert.throws(() => setGoalHours(-1, configPath), /positive/);
+
+  rmSync(dir, { recursive: true, force: true });
 });
 
 test('renderGoalStatus prints the summary in the expected shape', () => {

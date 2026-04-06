@@ -118,8 +118,8 @@ export function calcConsistencyScore(bedtimes: string[]): number {
   const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
   const stddev = Math.sqrt(variance);
 
-  if (stddev < 30) return 100;
-  if (stddev < 45) return 80;
-  if (stddev < 60) return 60;
-  return 40;
+  if (stddev < 30) return 100; // < 30 min variance → excellent consistency
+  if (stddev < 45) return 80;  // 30–44 min variance → good consistency
+  if (stddev < 60) return 60;  // 45–59 min variance → fair consistency
+  return 40;                   // ≥ 60 min variance → poor consistency
 }
