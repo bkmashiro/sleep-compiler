@@ -1,14 +1,26 @@
 export type SleepQuality = 'poor' | 'short' | 'good' | 'long';
 
-/** Bedtimes before this hour (noon) are treated as early-morning next-day sleepers. */
-export const EARLY_MORNING_CUTOFF_HOURS = 12;
+/** Minimum minutes for sleep to be classified as 'short' (6 hours). */
+const POOR_THRESHOLD = 360;
+/** Minimum minutes for sleep to be classified as 'good' (7 hours). */
+const SHORT_THRESHOLD = 420;
+/** Maximum minutes for sleep to remain 'good' (9 hours). Above this is 'long'. */
+const GOOD_THRESHOLD = 540;
+
+/** Stddev threshold (minutes) for a consistency score of 100. */
+const CONSISTENCY_PERFECT = 30;
+/** Stddev threshold (minutes) for a consistency score of 80. */
+const CONSISTENCY_GOOD = 45;
+/** Stddev threshold (minutes) for a consistency score of 60. Below this scores 40. */
+const CONSISTENCY_FAIR = 60;
 
 /**
- * Parses a time string in HH:MM or H:MM format into its numeric components.
+ * Parses a time string in `HH:MM` or `H:MM` format into hours and minutes.
  *
- * @param value - Time string, e.g. `"23:45"` or `"7:05"`. Hours must be 0–23, minutes 0–59.
- * @returns An object with `hours` (0–23) and `minutes` (0–59).
- * @throws {Error} If the format does not match `HH:MM` / `H:MM`, or the values are out of range.
+ * @param value - A time string, e.g. `"23:05"` or `"7:30"`.
+ * @returns An object with integer `hours` (0–23) and `minutes` (0–59).
+ * @throws {Error} If the string does not match `HH:MM` / `H:MM` format.
+ * @throws {Error} If hours > 23 or minutes > 59.
  */
 export function parseTime(value: string): { hours: number; minutes: number } {
   const match = value.match(/^(\d{1,2}):(\d{2})$/);
@@ -54,22 +66,22 @@ export function calcDurationMinutes(sleepTime: string, wakeTime: string): number
 }
 
 /**
- * Classifies a sleep duration into a quality tier.
+ * Classifies sleep duration into a quality bucket.
  *
- * | Range (minutes) | Label   |
- * |-----------------|---------|
- * | < 360 (< 6 h)   | `'poor'`  |
- * | 360–419         | `'short'` |
- * | 420–540 (7–9 h) | `'good'`  |
- * | > 540 (> 9 h)   | `'long'`  |
+ * | Duration              | Result  |
+ * |-----------------------|---------|
+ * | < 360 min  (< 6 h)    | `poor`  |
+ * | < 420 min  (< 7 h)    | `short` |
+ * | ≤ 540 min  (≤ 9 h)    | `good`  |
+ * | > 540 min  (> 9 h)    | `long`  |
  *
  * @param minutes - Sleep duration in minutes.
- * @returns A {@link SleepQuality} label.
+ * @returns One of `'poor'`, `'short'`, `'good'`, or `'long'`.
  */
 export function classifySleepQuality(minutes: number): SleepQuality {
-  if (minutes < 360) return 'poor';
-  if (minutes < 420) return 'short';
-  if (minutes <= 540) return 'good';
+  if (minutes < POOR_THRESHOLD) return 'poor';
+  if (minutes < SHORT_THRESHOLD) return 'short';
+  if (minutes <= GOOD_THRESHOLD) return 'good';
   return 'long';
 }
 
