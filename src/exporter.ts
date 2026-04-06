@@ -40,7 +40,7 @@ export function getExportRows(days?: number, dbPath?: string): ExportRow[] {
   }
 }
 
-function escapeCsv(value: string | number): string {
+export function escapeCsv(value: string | number): string {
   const text = String(value);
   if (!/[",\n]/.test(text)) {
     return text;

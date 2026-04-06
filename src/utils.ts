@@ -40,7 +40,7 @@ export function classifySleepQuality(minutes: number): SleepQuality {
   return 'long';
 }
 
-function normalizeBedtime(value: string): number {
+export function normalizeBedtime(value: string): number {
   const { hours, minutes } = parseTime(value);
   const totalMinutes = hours * 60 + minutes;
   return totalMinutes < EARLY_MORNING_CUTOFF_HOURS * 60 ? totalMinutes + 24 * 60 : totalMinutes;

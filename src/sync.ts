@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { createSleepDb, type SleepEntry } from './db.js';
+import { escapeCsv } from './exporter.js';
 import { calcDurationMinutes } from './utils.js';
 
 export type SyncFormat = 'csv' | 'apple-health';
@@ -18,15 +19,6 @@ function escapeXml(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-}
-
-function escapeCsv(value: string | number): string {
-  const text = String(value);
-  if (!/[",\n]/.test(text)) {
-    return text;
-  }
-
-  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function splitCsvLine(line: string): string[] {

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 
 import { createSleepDb } from '../src/db.js';
-import { getExportRows, toCsv } from '../src/exporter.js';
+import { escapeCsv, getExportRows, toCsv } from '../src/exporter.js';
 
 test('getExportRows returns export-friendly rows in ascending date order', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'sleep-compiler-export-'));

@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import { format } from 'date-fns';
 import { insertEntry, type SleepDb } from '../db.js';
 import { formatDuration, getQualityLabel } from '../formatter.js';
+import { parseTime } from '../utils.js';
 
 const DATA_DIR = join(homedir(), '.sleep-compiler');
 const PENDING_SLEEP_PATH = join(DATA_DIR, 'pending-sleep.json');
