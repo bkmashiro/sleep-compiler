@@ -229,6 +229,6 @@ export function registerSync(program: Command): void {
         db.close();
       }
 
-      console.error(`Imported ${rows.length} sleep entr${rows.length === 1 ? 'y' : 'ies'} from ${format}.`);
+      console.log(`Imported ${rows.length} sleep entr${rows.length === 1 ? 'y' : 'ies'} from ${format}.`);
     });
 }
