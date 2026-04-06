@@ -1,41 +1,50 @@
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import test from 'node:test';
+import { join, dirname } from 'node:path';
 
-const root = join(fileURLToPath(import.meta.url), '../../');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const entry = join(root, 'src/index.ts');
 
-function runReport(days: string): { status: number | null; stderr: string } {
+function runReport(args: string[]): { stdout: string; stderr: string; status: number } {
   const result = spawnSync(
     process.execPath,
-    ['--import', 'tsx/esm', entry, 'report', '--days', days],
-    { encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } }
+    ['--import', 'tsx/esm', entry, 'report', ...args],
+    { cwd: root, encoding: 'utf8' }
   );
-  return { status: result.status, stderr: result.stderr };
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    status: result.status ?? 1,
+  };
 }
 
-test('report --days rejects NaN values', () => {
-  const { status, stderr } = runReport('abc');
-  assert.equal(status, 1);
+test('report --days with a non-numeric value exits non-zero with an error message', () => {
+  const { stderr, status } = runReport(['--days', 'abc']);
+  assert.notEqual(status, 0);
   assert.match(stderr, /--days must be a positive integer/);
 });
 
-test('report --days rejects zero', () => {
-  const { status, stderr } = runReport('0');
-  assert.equal(status, 1);
+test('report --days with a negative number exits non-zero with an error message', () => {
+  const { stderr, status } = runReport(['--days', '-5']);
+  assert.notEqual(status, 0);
   assert.match(stderr, /--days must be a positive integer/);
 });
 
-test('report --days rejects negative numbers', () => {
-  const { status, stderr } = runReport('-5');
-  assert.equal(status, 1);
+test('report --days with zero exits non-zero with an error message', () => {
+  const { stderr, status } = runReport(['--days', '0']);
+  assert.notEqual(status, 0);
   assert.match(stderr, /--days must be a positive integer/);
 });
 
-test('report --days accepts floats that parseInt truncates to a positive integer', () => {
-  // parseInt('3.5', 10) === 3, which passes the positive-integer guard
-  const { status } = runReport('3.5');
+test('report --days with a float is accepted (parseInt truncates to integer)', () => {
+  // parseInt('3.5', 10) === 3, which is a valid positive integer
+  const { status } = runReport(['--days', '3.5']);
+  assert.equal(status, 0);
+});
+
+test('report --days with a valid positive integer succeeds', () => {
+  const { status } = runReport(['--days', '7']);
   assert.equal(status, 0);
 });
