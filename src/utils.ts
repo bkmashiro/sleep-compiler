@@ -43,6 +43,15 @@ function normalizeBedtime(value: string): number {
   return totalMinutes < 18 * 60 ? totalMinutes + 24 * 60 : totalMinutes;
 }
 
+export function escapeCsv(value: string | number): string {
+  const text = String(value);
+  if (!/[",\n]/.test(text)) {
+    return text;
+  }
+
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 export function calcConsistencyScore(bedtimes: string[]): number {
   if (bedtimes.length < 2) return 100;
 

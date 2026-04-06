@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import { format } from 'date-fns';
 import { insertEntry } from '../db.js';
 import { formatDuration, getQualityLabel } from '../formatter.js';
+import { parseTime } from '../utils.js';
 
 const DATA_DIR = join(homedir(), '.sleep-compiler');
 const PENDING_SLEEP_PATH = join(DATA_DIR, 'pending-sleep.json');
@@ -25,21 +26,6 @@ function formatTime(date: Date): string {
 
 function formatDate(date: Date): string {
   return format(date, 'yyyy-MM-dd');
-}
-
-function parseTime(time: string): { hours: number; minutes: number } {
-  const match = time.match(/^(\d{2}):(\d{2})$/);
-  if (!match) {
-    throw new Error(`Invalid time format in pending sleep file: ${time}`);
-  }
-
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) {
-    throw new Error(`Invalid time in pending sleep file: ${time}`);
-  }
-
-  return { hours, minutes };
 }
 
 function getPendingSleepDateTime(pending: PendingSleep): Date {

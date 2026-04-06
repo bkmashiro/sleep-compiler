@@ -1,4 +1,5 @@
 import { createSleepDb, type SleepEntry } from './db.js';
+import { escapeCsv } from './utils.js';
 
 export interface ExportRow {
   date: string;
@@ -38,15 +39,6 @@ export function getExportRows(days?: number, dbPath?: string): ExportRow[] {
   } finally {
     db.close();
   }
-}
-
-function escapeCsv(value: string | number): string {
-  const text = String(value);
-  if (!/[",\n]/.test(text)) {
-    return text;
-  }
-
-  return `"${text.replace(/"/g, '""')}"`;
 }
 
 export function toCsv(rows: ExportRow[]): string {
