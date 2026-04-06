@@ -14,6 +14,8 @@ import {
   parsePendingTime,
   pendingSleepToDate,
   minutesBetween,
+  parsePendingSleep,
+  CorruptedPendingFileError,
 } from '../src/commands/quick.js';
 
 function makeTempDir(t: { after: (fn: () => void) => void }): string {
@@ -235,4 +237,66 @@ test('recordWake handles overnight sleep spanning midnight correctly', (t) => {
 
   assert.equal(result.date, '2026-04-05');
   assert.equal(result.durationMinutes, 450); // 7h 30m
+});
+
+test('parsePendingSleep returns valid pending sleep from well-formed JSON', () => {
+  const raw = JSON.stringify({ time: '23:30', date: '2026-04-05' });
+  const result = parsePendingSleep(raw);
+  assert.deepEqual(result, { time: '23:30', date: '2026-04-05' });
+});
+
+test('parsePendingSleep throws CorruptedPendingFileError for truncated JSON', () => {
+  assert.throws(
+    () => parsePendingSleep('{"time": "23:30"'),
+    (err: unknown) => err instanceof CorruptedPendingFileError
+  );
+});
+
+test('parsePendingSleep throws CorruptedPendingFileError for empty string', () => {
+  assert.throws(
+    () => parsePendingSleep(''),
+    (err: unknown) => err instanceof CorruptedPendingFileError
+  );
+});
+
+test('parsePendingSleep throws CorruptedPendingFileError for random garbage', () => {
+  assert.throws(
+    () => parsePendingSleep('not json at all }{'),
+    (err: unknown) => err instanceof CorruptedPendingFileError
+  );
+});
+
+test('CorruptedPendingFileError message is user-friendly', () => {
+  assert.throws(
+    () => parsePendingSleep('{bad'),
+    (err: unknown) => {
+      assert.ok(err instanceof CorruptedPendingFileError);
+      assert.match(err.message, /corrupted/);
+      return true;
+    }
+  );
+});
+
+test('parsePendingSleep throws a plain Error for valid JSON missing time field', () => {
+  const raw = JSON.stringify({ date: '2026-04-05' });
+  assert.throws(
+    () => parsePendingSleep(raw),
+    (err: unknown) => err instanceof Error && !(err instanceof CorruptedPendingFileError)
+  );
+});
+
+test('parsePendingSleep throws a plain Error for valid JSON missing date field', () => {
+  const raw = JSON.stringify({ time: '23:30' });
+  assert.throws(
+    () => parsePendingSleep(raw),
+    (err: unknown) => err instanceof Error && !(err instanceof CorruptedPendingFileError)
+  );
+});
+
+test('parsePendingSleep throws a plain Error for valid JSON with wrong field types', () => {
+  const raw = JSON.stringify({ time: 2330, date: 20260405 });
+  assert.throws(
+    () => parsePendingSleep(raw),
+    (err: unknown) => err instanceof Error && !(err instanceof CorruptedPendingFileError)
+  );
 });

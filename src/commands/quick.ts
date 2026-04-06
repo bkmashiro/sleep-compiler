@@ -57,18 +57,22 @@ export function pendingSleepToDate(pending: PendingSleep): Date {
   return date;
 }
 
-export function readPendingSleep(filePath: string): PendingSleep {
-  if (!existsSync(filePath)) {
-    throw new Error('No pending sleep found. Run `sleep-compiler sleep now` first.');
+export class CorruptedPendingFileError extends Error {
+  constructor() {
+    super('Pending sleep file is corrupted — clearing it');
+    this.name = 'CorruptedPendingFileError';
   }
+}
 
-  const raw = readFileSync(filePath, 'utf8');
+export function parsePendingSleep(raw: string): PendingSleep {
   let parsed: Partial<PendingSleep>;
   try {
     parsed = JSON.parse(raw) as Partial<PendingSleep>;
-  } catch {
-    rmSync(filePath);
-    throw new Error('Pending sleep file was corrupted and has been removed. Run `sleep-compiler sleep now` to start again.');
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      throw new CorruptedPendingFileError();
+    }
+    throw err;
   }
 
   if (typeof parsed.time !== 'string' || typeof parsed.date !== 'string') {
@@ -76,6 +80,22 @@ export function readPendingSleep(filePath: string): PendingSleep {
   }
 
   return { time: parsed.time, date: parsed.date };
+}
+
+export function readPendingSleep(filePath: string): PendingSleep {
+  if (!existsSync(filePath)) {
+    throw new Error('No pending sleep found. Run `sleep-compiler sleep now` first.');
+  }
+
+  const raw = readFileSync(filePath, 'utf8');
+  try {
+    return parsePendingSleep(raw);
+  } catch (err) {
+    if (err instanceof CorruptedPendingFileError) {
+      rmSync(filePath);
+    }
+    throw err;
+  }
 }
 
 export function writePendingSleep(pending: PendingSleep, filePath: string): void {
