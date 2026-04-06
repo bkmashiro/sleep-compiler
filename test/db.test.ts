@@ -81,3 +81,46 @@ test('stores missing notes as null and reports aggregate stats', (t) => {
     max_duration: 510,
   });
 });
+
+test('upsertEntry overwrites an existing date instead of throwing', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.insertEntry('2026-04-01', '23:00', '07:00', 480, 'original note');
+  db.upsertEntry('2026-04-01', '22:30', '06:30', 480, 'updated note');
+
+  const entries = db.getAllEntries();
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].sleep_time, '22:30');
+  assert.equal(entries[0].wake_time, '06:30');
+  assert.equal(entries[0].note, 'updated note');
+});
+
+test('upsertEntry clears a note when none is provided', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  db.insertEntry('2026-04-01', '23:00', '07:00', 480, 'original note');
+  db.upsertEntry('2026-04-01', '22:30', '06:30', 480);
+
+  const [entry] = db.getAllEntries();
+
+  assert.equal(entry.note, null);
+});
+
+test('getStats returns zero values on an empty database', (t) => {
+  const db = createSleepDb(':memory:');
+  t.after(() => db.close());
+
+  const stats = db.getStats();
+
+  assert.equal(stats.total, 0);
+});
+
+test('close() is idempotent — calling it twice does not throw', () => {
+  const db = createSleepDb(':memory:');
+
+  db.close();
+  assert.doesNotThrow(() => db.close());
+});
