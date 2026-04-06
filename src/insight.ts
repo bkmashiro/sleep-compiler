@@ -35,6 +35,22 @@ function toClockMinutes(value: string): number {
   return hours * 60 + minutes;
 }
 
+/**
+ * Converts a bedtime string to a minute value on a continuous scale that
+ * crosses midnight without wrapping.
+ *
+ * Times before noon (< 12:00 / 720 min) are treated as the following
+ * morning — 24 × 60 is added so that e.g. 01:00 (60) becomes 1500, keeping
+ * it numerically close to 23:00 (1380) rather than near the start of the
+ * scale. The noon cut-off is more permissive than {@link utils.normalizeBedtime}
+ * (which uses 18:00) to accommodate very-early-morning edge cases in
+ * statistical calculations.
+ */
+function normalizeBedtime(value: string): number {
+  const total = toClockMinutes(value);
+  return total < 12 * 60 ? total + 24 * 60 : total;
+}
+
 function average(values: number[]): number {
   if (values.length === 0) {
     return 0;
@@ -78,6 +94,18 @@ function dateToWeekday(date: string): number {
   return new Date(year, month - 1, day).getDay();
 }
 
+/**
+ * Estimates the slope of a linear trend through an ordered series using
+ * ordinary least-squares regression.
+ *
+ * The independent variable (x) is the 0-based index of each element.
+ * The closed-form solution avoids building a full matrix:
+ *
+ *   slope = Σ (xᵢ − x̄)(yᵢ − ȳ) / Σ (xᵢ − x̄)²
+ *
+ * Returns 0 when fewer than 2 values are provided or when all x values
+ * are identical (denominator = 0), preventing a division-by-zero.
+ */
 function computeSlope(values: number[]): number {
   if (values.length < 2) {
     return 0;
@@ -108,6 +136,28 @@ function describeBestDay(day: number, minutes: number): string {
   return `${prefix} averages ${formatDuration(Math.round(minutes))}`;
 }
 
+/**
+ * Derives a {@link SleepInsight} summary from a collection of sleep entries.
+ *
+ * Only the 30 most recent entries (by date) are considered. Key calculations:
+ *
+ * - **Trend** (`bedtimeTrendMinutesPerWeek`): {@link computeSlope} is run on
+ *   the chronologically ordered normalised bedtimes. The slope (minutes per
+ *   entry) is multiplied by 7 to express drift per week.
+ *
+ * - **Sleep debt** (`sleepDebtMinutes`): for the last 7 entries, the
+ *   cumulative difference between each night's duration and the 30-day
+ *   average. Negative values indicate a deficit.
+ *
+ * - **Weekend shift** (`weekendShiftMinutes`): difference between the mean
+ *   normalised bedtime on Fri/Sat (days 5–6) and Mon–Thu (days 1–4). Null
+ *   when either group has no entries.
+ *
+ * - **Weakest weekday** (`weekdayDelta`): the day-of-week bucket whose
+ *   average duration falls furthest below the overall average.
+ *
+ * Returns a zeroed/null insight object when there are no entries.
+ */
 export function analyzeSleepEntries(entries: SleepEntry[]): SleepInsight {
   const recentEntries = [...entries]
     .sort((a, b) => a.date.localeCompare(b.date))
