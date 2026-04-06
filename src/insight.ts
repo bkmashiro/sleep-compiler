@@ -79,7 +79,8 @@ function formatSignedMinutes(minutes: number): string {
 }
 
 function dateToWeekday(date: string): number {
-  return new Date(`${date}T12:00:00Z`).getUTCDay();
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(year, month - 1, day).getDay();
 }
 
 function computeSlope(values: number[]): number {
