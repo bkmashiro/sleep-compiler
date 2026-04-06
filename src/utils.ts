@@ -3,6 +3,13 @@ export type SleepQuality = 'poor' | 'short' | 'good' | 'long';
 /** Bedtimes before this hour (noon) are treated as early-morning next-day sleepers. */
 export const EARLY_MORNING_CUTOFF_HOURS = 12;
 
+/**
+ * Parses a time string in HH:MM or H:MM format into its numeric components.
+ *
+ * @param value - Time string, e.g. `"23:45"` or `"7:05"`. Hours must be 0–23, minutes 0–59.
+ * @returns An object with `hours` (0–23) and `minutes` (0–59).
+ * @throws {Error} If the format does not match `HH:MM` / `H:MM`, or the values are out of range.
+ */
 export function parseTime(value: string): { hours: number; minutes: number } {
   const match = value.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) {
@@ -19,6 +26,19 @@ export function parseTime(value: string): { hours: number; minutes: number } {
   return { hours, minutes };
 }
 
+/**
+ * Calculates the sleep duration in minutes between a bedtime and a wake time.
+ *
+ * Handles midnight crossings: when `wakeTime` is on or before `sleepTime` on the
+ * clock (e.g. sleep `"23:00"`, wake `"07:00"`), a full 24-hour day (1440 min) is
+ * added to the wake value so the result is always positive and ≤ 1440.
+ * Equal times (e.g. `"08:00"` → `"08:00"`) are treated as exactly 24 h of sleep.
+ *
+ * @param sleepTime - Bedtime in `HH:MM` format, e.g. `"23:30"`.
+ * @param wakeTime  - Wake time in `HH:MM` format, e.g. `"07:15"`.
+ * @returns Duration in whole minutes (1–1440).
+ * @throws {Error} If either argument is not a valid `HH:MM` time.
+ */
 export function calcDurationMinutes(sleepTime: string, wakeTime: string): number {
   const sleep = parseTime(sleepTime);
   const wake = parseTime(wakeTime);
@@ -33,6 +53,19 @@ export function calcDurationMinutes(sleepTime: string, wakeTime: string): number
   return wakeMinutes - sleepMinutes;
 }
 
+/**
+ * Classifies a sleep duration into a quality tier.
+ *
+ * | Range (minutes) | Label   |
+ * |-----------------|---------|
+ * | < 360 (< 6 h)   | `'poor'`  |
+ * | 360–419         | `'short'` |
+ * | 420–540 (7–9 h) | `'good'`  |
+ * | > 540 (> 9 h)   | `'long'`  |
+ *
+ * @param minutes - Sleep duration in minutes.
+ * @returns A {@link SleepQuality} label.
+ */
 export function classifySleepQuality(minutes: number): SleepQuality {
   if (minutes < 360) return 'poor';
   if (minutes < 420) return 'short';
@@ -46,6 +79,27 @@ export function normalizeBedtime(value: string): number {
   return totalMinutes < EARLY_MORNING_CUTOFF_HOURS * 60 ? totalMinutes + 24 * 60 : totalMinutes;
 }
 
+/**
+ * Scores bedtime consistency as a value in `{40, 60, 80, 100}` based on the
+ * standard deviation of the supplied bedtimes.
+ *
+ * Bedtimes are first *normalised* to a continuous timeline: any time earlier
+ * than 18:00 (i.e. an after-midnight bedtime like `"01:30"`) is shifted forward
+ * by 24 hours so that `"01:30"` sorts after `"23:00"` rather than before it.
+ * This prevents the mean from being pulled toward noon when comparing, say,
+ * `"23:30"` and `"00:30"`.
+ *
+ * | Std-dev (minutes) | Score |
+ * |-------------------|-------|
+ * | < 30              | 100   |
+ * | 30–44             | 80    |
+ * | 45–59             | 60    |
+ * | ≥ 60              | 40    |
+ *
+ * @param bedtimes - Array of bedtime strings in `HH:MM` format. Fewer than two
+ *   entries always returns `100` (no variance to measure).
+ * @returns Consistency score: `40`, `60`, `80`, or `100`.
+ */
 export function calcConsistencyScore(bedtimes: string[]): number {
   if (bedtimes.length < 2) return 100;
 

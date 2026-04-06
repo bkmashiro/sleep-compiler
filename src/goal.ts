@@ -84,6 +84,17 @@ function getStatusIcon(status: GoalDay['status']): string {
   return '❌';
 }
 
+/**
+ * Persists a sleep goal (in hours) to the JSON config file.
+ *
+ * Creates the config directory if it does not already exist. The value is
+ * merged into any existing config so other keys are preserved.
+ *
+ * @param goalHours  - Target sleep hours per night. Must be a finite positive number.
+ * @param configPath - Optional path to the config file. Defaults to
+ *                     `~/.sleep-compiler/config.json`.
+ * @throws {Error} If `goalHours` is not a finite positive number.
+ */
 export function setGoalHours(goalHours: number, configPath?: string): void {
   if (!Number.isFinite(goalHours) || goalHours <= 0) {
     throw new Error('Goal hours must be a positive number.');
@@ -94,11 +105,36 @@ export function setGoalHours(goalHours: number, configPath?: string): void {
   writeConfig(config, configPath);
 }
 
+/**
+ * Reads the persisted sleep goal from the config file.
+ *
+ * @param configPath - Optional path to the config file. Defaults to
+ *                     `~/.sleep-compiler/config.json`.
+ * @returns The stored goal in hours, or `null` if no goal has been set.
+ */
 export function getGoalHours(configPath?: string): number | null {
   const config = readConfig(configPath);
   return typeof config.goalHours === 'number' ? config.goalHours : null;
 }
 
+/**
+ * Computes a 7-day goal summary ending on `now` (or today).
+ *
+ * Each of the 7 calendar days (inclusive of today) is classified against
+ * `goalHours`:
+ * - `'hit'`  — within 0 minutes of the goal (or over it)
+ * - `'near'` — 1–30 minutes under the goal
+ * - `'miss'` — more than 30 minutes under the goal (or no entry for that day)
+ *
+ * Days with no sleep entry are treated as 0 hours.
+ *
+ * @param goalHours - Nightly sleep target in hours (e.g. `8`).
+ * @param options.dbPath - Optional path to the SQLite database. Defaults to
+ *                         `~/.sleep-compiler/sleep.db`.
+ * @param options.now    - Reference date for "today". Defaults to `new Date()`.
+ *                         Useful for deterministic tests.
+ * @returns A {@link GoalSummary} covering the last 7 calendar days.
+ */
 export function getGoalSummary(
   goalHours: number,
   options?: {
@@ -135,6 +171,18 @@ export function getGoalSummary(
   }
 }
 
+/**
+ * Renders a {@link GoalSummary} as a multi-line ANSI-coloured string for
+ * terminal display.
+ *
+ * Each day is shown as a bar chart row: `"DAY ████████░░░░  7.5h  -0.5h ⚠"`.
+ * The bar spans 12 cells at 2 cells per hour, so a full bar represents 6 h.
+ * Colours follow the day's status: green (hit), yellow (near), red (miss).
+ * A summary line is appended showing the weekly average and hit-rate.
+ *
+ * @param summary - Computed goal summary from {@link getGoalSummary}.
+ * @returns A newline-joined string ready to be passed to `console.log`.
+ */
 export function renderGoalStatus(summary: GoalSummary): string {
   const lines = [`Sleep goal: ${summary.goalHours}h`, 'Last 7 days:'];
 
