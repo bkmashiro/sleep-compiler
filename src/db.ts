@@ -4,7 +4,7 @@ import { mkdirSync } from 'fs';
 import { join } from 'path';
 
 const DB_DIR = join(homedir(), '.sleep-compiler');
-const DB_PATH = join(DB_DIR, 'sleep.db');
+const DB_PATH = process.env['SLEEP_DB_PATH'] ?? join(DB_DIR, 'sleep.db');
 
 mkdirSync(DB_DIR, { recursive: true });
 
