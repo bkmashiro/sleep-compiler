@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { createSleepDb, type SleepEntry } from './db.js';
+import { getAllEntries, upsertEntry, type SleepEntry } from './db.js';
 import { escapeCsv } from './exporter.js';
 import { calcDurationMinutes } from './utils.js';
 
@@ -200,25 +200,15 @@ export function registerSync(program: Command): void {
       }
 
       if (opts.export) {
-        const db = createSleepDb();
-        try {
-          console.log(exportSync(db.getAllEntries(), format));
-        } finally {
-          db.close();
-        }
+        console.log(exportSync(getAllEntries(), format));
         return;
       }
 
       const input = await readStdin();
       const rows = importSync(input, format);
-      const db = createSleepDb();
 
-      try {
-        for (const row of rows) {
-          db.upsertEntry(row.date, row.sleep_time, row.wake_time, row.duration_minutes, row.note ?? undefined);
-        }
-      } finally {
-        db.close();
+      for (const row of rows) {
+        upsertEntry(row.date, row.sleep_time, row.wake_time, row.duration_minutes, row.note ?? undefined);
       }
 
       console.log(`Imported ${rows.length} sleep entr${rows.length === 1 ? 'y' : 'ies'} from ${format}.`);
