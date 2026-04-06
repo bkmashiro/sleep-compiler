@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calcConsistencyScore, calcDurationMinutes, parseTime } from '../src/utils.js';
+import { calcConsistencyScore, calcDurationMinutes, normalizeBedtime, parseTime } from '../src/utils.js';
 
 test('parseTime accepts single-digit hours', () => {
   assert.deepEqual(parseTime('7:05'), { hours: 7, minutes: 5 });
@@ -17,6 +17,33 @@ test('parseTime rejects out-of-range times', () => {
 
 test('calcDurationMinutes treats equal sleep and wake times as overnight sleep', () => {
   assert.equal(calcDurationMinutes('08:00', '08:00'), 24 * 60);
+});
+
+test('parseTime accepts two-digit hours', () => {
+  assert.deepEqual(parseTime('23:59'), { hours: 23, minutes: 59 });
+});
+
+test('parseTime rejects minutes out of range', () => {
+  assert.throws(() => parseTime('10:60'), /Invalid time: 10:60/);
+});
+
+test('normalizeBedtime leaves evening bedtimes (>=12:00) unchanged', () => {
+  // 23:00 = 1380 min — should stay at 1380 (no wrap)
+  assert.equal(normalizeBedtime('23:00'), 23 * 60);
+});
+
+test('normalizeBedtime wraps post-midnight bedtimes (<12:00) by +24h', () => {
+  // 01:30 = 90 min — should become 90 + 1440 = 1530
+  assert.equal(normalizeBedtime('01:30'), 90 + 24 * 60);
+});
+
+test('normalizeBedtime treats exactly noon (12:00) as evening (no wrap)', () => {
+  assert.equal(normalizeBedtime('12:00'), 12 * 60);
+});
+
+test('normalizeBedtime places post-midnight bedtime after same-night evening bedtime', () => {
+  // 00:30 (wrapped) must be greater than 23:00 (not wrapped) so ordering is correct
+  assert.ok(normalizeBedtime('00:30') > normalizeBedtime('23:00'));
 });
 
 test('calcConsistencyScore returns 100 with fewer than two bedtimes', () => {
