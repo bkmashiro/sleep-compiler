@@ -115,12 +115,17 @@ Shows total entries, average/best/worst durations, best streak, worst week, and 
 
 ### `export`
 
-Export all data as CSV.
+Export all data as CSV or JSON.
 
 ```bash
 sleep-compiler export --format csv
 sleep-compiler export --format csv > sleep_data.csv
+sleep-compiler export --format json
 ```
+
+Options:
+- `--format csv|json` — Output format (default: `csv`)
+- `--days <n>` — Only include the last N days
 
 ## Quality Thresholds
 
